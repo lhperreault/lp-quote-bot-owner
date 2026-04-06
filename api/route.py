@@ -110,8 +110,9 @@ def _cold_lead(notes: str) -> dict:
     return out
 
 
-def _followup_existing(notes: str) -> dict:
-    likely = find_likely_client_from_text(notes)
+def _followup_existing(notes: str, likely: dict | None = None) -> dict:
+    if likely is None:
+        likely = find_likely_client_from_text(notes)
     if not likely:
         # Fallback: treat as cold lead
         out = _cold_lead(notes)
@@ -161,13 +162,42 @@ class handler(BaseHTTPRequestHandler):
         if not notes:
             return json_response(self, 400, {"error": "missing 'notes' field"})
 
+        # ---- RESOLVE FIRST: ask the database, not the classifier ----
+        likely = None
         try:
-            decision = classify(notes)
-        except Exception as e:
-            return json_response(self, 502, {"error": f"router classify failed: {e}"})
+            likely = find_likely_client_from_text(notes)
+        except Exception:
+            likely = None
 
-        intent = (decision.get("intent") or "").strip()
-        reason = decision.get("reason", "")
+        n = notes.lower().strip()
+        is_question = any(k in n for k in (
+            "how many", "how much", "what is", "what's", "average", "total ",
+            "revenue", "ltv", "who has", "who hasn", "list ", "show me",
+        ))
+        booking_words = any(k in n for k in (
+            "confirmed", "confirm ", "booked for", "locked in", "scheduled for",
+            "booking for", "is booked",
+        ))
+
+        if is_question and not likely:
+            intent = "question"
+            reason = "keyword: question"
+        elif likely:
+            intent = "book_existing" if booking_words else "update_existing"
+            reason = f"db match: {(likely.get('fields') or {}).get('Name','')}"
+        else:
+            # No client matched in DB → ask the classifier whether this is a
+            # brand new lead/booking or a general question.
+            try:
+                decision = classify(notes)
+            except Exception as e:
+                return json_response(self, 502, {"error": f"router classify failed: {e}"})
+            intent = (decision.get("intent") or "new_estimate").strip()
+            reason = decision.get("reason", "")
+            if intent in ("update_existing", "book_existing"):
+                # Classifier thinks it's existing but DB disagrees → cold lead
+                intent = "new_estimate"
+                reason += " (no db match, downgraded)"
 
         try:
             if intent == "new_estimate":
@@ -175,7 +205,7 @@ class handler(BaseHTTPRequestHandler):
             elif intent == "new_booking":
                 payload = _cold_lead(notes)  # cold-lead path handles booking_date inline
             elif intent in ("update_existing", "book_existing"):
-                payload = _followup_existing(notes)
+                payload = _followup_existing(notes, likely=likely)
             elif intent == "question":
                 payload = _answer_question(notes)
             else:
