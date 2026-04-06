@@ -114,17 +114,32 @@
 
 <script>
 const KEY = "lp_api_key_v1";
+let memKey = null;
+const store = {
+  get() {
+    try { return localStorage.getItem(KEY) || sessionStorage.getItem(KEY) || memKey; }
+    catch { return memKey; }
+  },
+  set(v) {
+    memKey = v;
+    try { localStorage.setItem(KEY, v); } catch {}
+  },
+  clear() {
+    memKey = null;
+    try { localStorage.removeItem(KEY); sessionStorage.removeItem(KEY); } catch {}
+  },
+};
 function getKey() {
-  let k = sessionStorage.getItem(KEY);
+  let k = store.get();
   if (!k) {
-    k = prompt("Enter your LP_SHARED_SECRET (only asked once per session):");
-    if (k) sessionStorage.setItem(KEY, k);
+    k = prompt("Enter your LP_SHARED_SECRET (saved on this device):");
+    if (k) store.set(k);
   }
   return k;
 }
 document.getElementById("config-link").onclick = (e) => {
   e.preventDefault();
-  sessionStorage.removeItem(KEY);
+  store.clear();
   getKey();
 };
 
