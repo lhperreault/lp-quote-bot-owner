@@ -135,7 +135,11 @@ async function api(path, opts = {}) {
     headers: { "Content-Type": "application/json", "X-API-Key": key },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
-  const data = await res.json().catch(() => ({}));
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch { data = { error: `HTTP ${res.status} — non-JSON response: ${text.slice(0, 300)}` }; }
+  if (!res.ok && !data.error) data.error = `HTTP ${res.status}`;
   return { status: res.status, data };
 }
 
