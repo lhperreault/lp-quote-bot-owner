@@ -529,25 +529,41 @@ _NAME_SKIP = {
 
 def _extract_name_tokens(text: str) -> list:
     """Pull a likely client-name token sequence from the start of free text.
-    Recognizes 'John S' as ['john', 's']. Stops at the first lowercase word
-    after collecting at least one capitalized name token."""
+    Works on lowercase too ('jane wants a repeat' -> ['jane']).
+
+    Rules:
+    - Skip common opener words (Hi, Hey, Talked, ah, etc.) until we find
+      something that could be a name.
+    - First token must be >= 3 chars and not in the skip list.
+    - After the first token, accept ONE more token only if it's either a
+      single letter (last-name initial like 'John S') or a capitalized word
+      (proper last name like 'John Smith'). Anything else ends the run.
+    - If a search matches no client, /api/quote falls through to the cold
+      lead path, so false positives here are harmless."""
     if not text:
         return []
     snippet = text[:160]
     words = re.findall(r"[A-Za-z]+", snippet)
     out: list = []
     for w in words:
-        if not w[0].isupper():
+        wl = w.lower()
+        if wl in _NAME_SKIP:
             if out:
                 break
             continue
-        if w.lower() in _NAME_SKIP:
-            if out:
-                break
+        if not out:
+            if len(w) < 3:
+                continue
+            out.append(wl)
             continue
-        out.append(w.lower())
-        if len(out) >= 3:
+        # Subsequent token: only accept initial or capitalized last name
+        if len(w) == 1:
+            out.append(wl)
             break
+        if w[0].isupper():
+            out.append(wl)
+            break
+        break
     return out
 
 
