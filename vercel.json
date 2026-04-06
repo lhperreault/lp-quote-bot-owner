@@ -1,10 +1,10 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/quote.py",  "use": "@vercel/python", "config": { "includeFiles": "api/lp_core.py" } },
-    { "src": "api/update.py", "use": "@vercel/python", "config": { "includeFiles": "api/lp_core.py" } },
-    { "src": "api/book.py",   "use": "@vercel/python", "config": { "includeFiles": "api/lp_core.py" } },
-    { "src": "api/find.py",   "use": "@vercel/python", "config": { "includeFiles": "api/lp_core.py" } },
+    { "src": "api/quote.py",  "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "api/update.py", "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "api/book.py",   "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "api/find.py",   "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
     { "src": "public/**",     "use": "@vercel/static" }
   ],
   "routes": [

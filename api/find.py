@@ -6,6 +6,9 @@ Headers: X-API-Key: <LP_SHARED_SECRET>
 Returns: {"leads": [{record_id, name, address, status, date, quote}, ...]}
 """
 
+import os, sys
+sys.path.insert(0, os.path.dirname(__file__))
+
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 

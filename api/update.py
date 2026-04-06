@@ -9,6 +9,9 @@ Returns: {message, record_id, parsed, airtable_url}
 If multiple records match the name, returns 300 with a list so the caller can disambiguate.
 """
 
+import os, sys
+sys.path.insert(0, os.path.dirname(__file__))
+
 from http.server import BaseHTTPRequestHandler
 
 from lp_core import (
