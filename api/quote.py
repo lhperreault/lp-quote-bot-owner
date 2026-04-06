@@ -1,7 +1,6 @@
 """
 POST /api/quote
 Body: {"notes": "raw call notes from Luke"}
-Headers: X-API-Key: <LP_SHARED_SECRET>
 
 Returns: {
   "message": "the customer-ready text",

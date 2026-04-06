@@ -208,10 +208,10 @@ def airtable_create_lead(parsed: dict, raw_notes: str) -> dict:
     fields = {
         FIELD_NAME: parsed.get("name", ""),
         FIELD_FULL_NAME: parsed.get("full_name", ""),
-        FIELD_EMAIL: parsed.get("email", "") or None,  # email field rejects empty string
-        FIELD_PHONE: parsed.get("phone", ""),
-        FIELD_SERVICE_TYPE: parsed.get("service_type", ""),
-        FIELD_PROPERTY_DETAILS: parsed.get("property_details", ""),
+        FIELD_EMAIL: parsed.get("email", "") or None,  # typed fields reject empty string
+        FIELD_PHONE: parsed.get("phone", "") or None,
+        FIELD_SERVICE_TYPE: parsed.get("service_type", "") or None,
+        FIELD_PROPERTY_DETAILS: parsed.get("property_details", "") or None,
         FIELD_QUOTE: parsed.get("message", ""),
         FIELD_CONCERNS: (parsed.get("concerns", "") + ("\n\n---\nReasoning:\n" + parsed.get("reasoning", "") if parsed.get("reasoning") else "")).strip(),
         FIELD_DATE_OF_CONVO: datetime.now(timezone.utc).isoformat(),
@@ -246,7 +246,7 @@ def airtable_search_by_name(name: str, limit: int = 5) -> list:
         params={
             "filterByFormula": formula,
             "maxRecords": limit,
-            "sort[0][field]": "Date of Conversation",
+            "sort[0][field]": FIELD_DATE_OF_CONVO,
             "sort[0][direction]": "desc",
         },
         timeout=20,
@@ -279,7 +279,7 @@ def airtable_fuzzy_search(query: str, limit: int = 10) -> list:
         params={
             "filterByFormula": formula,
             "maxRecords": limit,
-            "sort[0][field]": "Date of Conversation",
+            "sort[0][field]": FIELD_DATE_OF_CONVO,
             "sort[0][direction]": "desc",
         },
         timeout=20,
@@ -296,7 +296,7 @@ def airtable_list_recent(limit: int = 10) -> list:
         headers=airtable_headers(),
         params={
             "maxRecords": limit,
-            "sort[0][field]": "Date of Conversation",
+            "sort[0][field]": FIELD_DATE_OF_CONVO,
             "sort[0][direction]": "desc",
         },
         timeout=20,

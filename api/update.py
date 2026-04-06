@@ -2,7 +2,6 @@
 POST /api/update
 Body: {"name": "Sarah", "edit": "swap date to Sat May 30, add gutter clean $150"}
    OR {"record_id": "recXXX", "edit": "..."}
-Headers: X-API-Key: <LP_SHARED_SECRET>
 
 Returns: {message, record_id, parsed, airtable_url}
 
@@ -20,6 +19,7 @@ from lp_core import (
     AIRTABLE_BASE_ID,
     AIRTABLE_TABLE_ID,
     FIELD_CONCERNS,
+    FIELD_CONVO_LOG,
     FIELD_DATE_OF_BOOKING,
     FIELD_LEAD_STATUS,
     FIELD_QUOTE,
@@ -35,19 +35,21 @@ from lp_core import (
 )
 
 
+# Field-name fallbacks for records that came back name-keyed from Airtable.
+_NAME_FALLBACK = {
+    FIELD_QUOTE: "Quote",
+    FIELD_CONCERNS: "Concerns",
+    FIELD_CONVO_LOG: "Conversation Log",
+}
+
+
 def _get_record_field(record: dict, field_id: str) -> str:
-    """Pull a field value by ID. Airtable returns name-keyed JSON by default;
-    when records were created with field IDs they round-trip as field names.
-    Try both."""
-    fields = record.get("fields", {})
+    """Pull a field value by ID or by its human name. Airtable can return either
+    shape depending on how the record was written."""
+    fields = record.get("fields", {}) or {}
     if field_id in fields:
-        return fields[field_id]
-    # Fall back to name-keyed
-    name_map = {
-        "fldnqd4dcULAQb365": "Quote",
-        "fldI7BQVTbCEOIWiK": "Concerns",
-    }
-    return fields.get(name_map.get(field_id, ""), "")
+        return fields[field_id] or ""
+    return fields.get(_NAME_FALLBACK.get(field_id, ""), "") or ""
 
 
 class handler(BaseHTTPRequestHandler):
@@ -102,9 +104,9 @@ class handler(BaseHTTPRequestHandler):
                 })
             record = matches[0]
 
-        existing_quote = record["fields"].get("Quote", "")
-        existing_concerns = record["fields"].get("Concerns", "")
-        original_notes = record["fields"].get("Conversation Log", "")
+        existing_quote = str(_get_record_field(record, FIELD_QUOTE) or "")
+        existing_concerns = str(_get_record_field(record, FIELD_CONCERNS) or "")
+        original_notes = str(_get_record_field(record, FIELD_CONVO_LOG) or "")
 
         # Give Claude full context so it can answer questions or revise
         user_msg = (
@@ -149,7 +151,7 @@ class handler(BaseHTTPRequestHandler):
                 end = start + timedelta(hours=4)
                 update_fields[FIELD_DATE_OF_BOOKING] = booking_date
                 update_fields[FIELD_LEAD_STATUS] = "Booked"
-                fields_now = record["fields"]
+                fields_now = record.get("fields", {}) or {}
                 title = f"{fields_now.get('Name', 'Job')} — {fields_now.get('Service Type', '')}".strip(" —")
                 description = (
                     f"{fields_now.get('Property Details', '')}\n\n"

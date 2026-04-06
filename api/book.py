@@ -3,7 +3,6 @@ POST /api/book
 Body: {"name": "Sarah", "date": "2026-05-23"}  # YYYY-MM-DD
    OR {"record_id": "recXXX", "date": "2026-05-23"}
    Optional: {"time": "08:30", "duration_hours": 4}
-Headers: X-API-Key: <LP_SHARED_SECRET>
 
 Returns: {
   "ok": true,

@@ -1,7 +1,7 @@
 """
 GET /api/find?name=Sarah     -> search by first name (fuzzy)
+GET /api/find?q=kate quakertown -> multi-token fuzzy across name/address
 GET /api/find                -> recent 10 leads
-Headers: X-API-Key: <LP_SHARED_SECRET>
 
 Returns: {"leads": [{record_id, name, address, status, date, quote}, ...]}
 """
