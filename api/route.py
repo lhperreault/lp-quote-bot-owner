@@ -58,12 +58,26 @@ Return ONLY a strict JSON object, no prose:
 {"intent": "<one of the five>", "reason": "<short>"}"""
 
 
+_VALID_INTENTS = ("new_estimate", "new_booking", "update_existing", "book_existing", "question")
+
 def classify(notes: str) -> dict:
     raw = call_claude(notes, system=ROUTER_SYSTEM, max_tokens=120)
     try:
         return parse_quote_json(raw)
     except Exception:
-        return {"intent": "new_estimate", "reason": "fallback"}
+        pass
+    # Lenient fallback: scan raw text for an intent token
+    low = (raw or "").lower()
+    for it in _VALID_INTENTS:
+        if it in low:
+            return {"intent": it, "reason": "lenient_match"}
+    # Last-ditch keyword heuristic on the user's notes
+    n = notes.lower()
+    if any(k in n for k in ("confirmed", "confirm", "booked for", "locked in", "scheduled for")):
+        return {"intent": "book_existing", "reason": "keyword_fallback"}
+    if any(k in n for k in ("how many", "how much", "what is", "what's", "average", "total ", "revenue", "ltv", "who ")):
+        return {"intent": "question", "reason": "keyword_fallback"}
+    return {"intent": "new_estimate", "reason": "default_fallback"}
 
 
 # ---------- Intent handlers ----------

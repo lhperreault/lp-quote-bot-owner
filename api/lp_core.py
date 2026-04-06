@@ -607,12 +607,15 @@ def ai_resolve_client_lite(text: str, candidates: list) -> str | None:
     lines = []
     for c in candidates:
         cf = c.get("fields") or {}
+        hint = cf.get("_hint", "")
+        hint_str = f" | {hint}" if hint else ""
         lines.append(
-            f"- {c['id']}: name={cf.get('Name','')} | full={cf.get('Full name','')} | addr={cf.get('Address','')}"
+            f"- {c['id']}: name={cf.get('Name','')} | full={cf.get('Full name','')} | addr={cf.get('Address','')}{hint_str}"
         )
     user_msg = (
+        f"Today's date: {_today_iso()}\n\n"
         f"Luke wrote:\n{text}\n\n"
-        f"All clients:\n" + "\n".join(lines) + "\n\n"
+        f"All clients (recent ones include date/service hints):\n" + "\n".join(lines) + "\n\n"
         "Which client is he referring to? Reply with ONLY the rec id or 'none'."
     )
     try:
@@ -720,10 +723,29 @@ def find_likely_client_from_text(text: str) -> dict | None:
     `_latest_job` attached) or None."""
     if not text or not text.strip():
         return None
-    # Stage 1: lightweight pass over ALL clients (name/full name/address only)
+    # Stage 1: lightweight pass over ALL clients + date hints from recent jobs
     lite = list_all_clients_lite()
     if not lite:
         return None
+    # Annotate any recently-active clients with their latest quote/booking dates
+    try:
+        recent = list_recent_clients_with_jobs(limit=30)
+    except Exception:
+        recent = []
+    recent_map = {}
+    for r in recent:
+        jf = (r.get("_latest_job") or {}).get("fields") or {}
+        recent_map[r["id"]] = {
+            "quoted": jf.get("Quote date", ""),
+            "booked": jf.get("Booking date", ""),
+            "service": jf.get("Service type", ""),
+            "status": jf.get("Lead status", ""),
+        }
+    for c in lite:
+        hint = recent_map.get(c["id"])
+        if hint:
+            f = c.setdefault("fields", {})
+            f["_hint"] = f"recent: quoted={hint['quoted']} booked={hint['booked']} service={hint['service']} status={hint['status']}"
     matched_id = ai_resolve_client_lite(text, lite)
     if not matched_id:
         return None
