@@ -22,7 +22,9 @@
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
     font-size: 16px; line-height: 1.5; }
   .wrap { max-width: 720px; margin: 0 auto; padding: 16px; padding-bottom: 80px; }
-  h1 { font-size: 22px; margin: 8px 0 4px; }
+  .header { display: flex; align-items: center; gap: 10px; margin: 8px 0 4px; }
+  .logo { width: 36px; height: 36px; border-radius: 50%; flex: 0 0 auto; }
+  h1 { font-size: 22px; margin: 0; }
   .sub { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
   .card { background: var(--card); border: 1px solid var(--border);
     border-radius: 12px; padding: 16px; margin-bottom: 16px; }
@@ -76,13 +78,14 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>LP Quote Writer</h1>
-  <div class="sub">Paste call notes, get a ready-to-send message.</div>
+  <div class="header">
+    <img src="/logo.png" alt="LP" class="logo" onerror="this.style.display='none'" />
+    <h1 id="page-title">LP Quote Agent</h1>
+  </div>
+  <div class="sub" id="page-sub">Paste call notes, get a ready-to-send message. Then chat to refine or book.</div>
 
   <div class="tabs">
-    <div class="tab active" data-tab="new">New</div>
-    <div class="tab" data-tab="edit">Edit</div>
-    <div class="tab" data-tab="book">Book</div>
+    <div class="tab active" data-tab="new">Chat</div>
     <div class="tab" data-tab="recent">Recent</div>
   </div>
 
@@ -95,28 +98,6 @@
       <button id="btn-quote">Write the message</button>
       <button id="btn-new-convo" class="secondary hidden" style="flex:0 0 auto;padding:12px 14px">New</button>
     </div>
-  </div>
-
-  <!-- EDIT EXISTING -->
-  <div class="card hidden" id="tab-edit">
-    <label>Customer first name</label>
-    <input type="text" id="edit-name" placeholder="Sarah" />
-    <label style="margin-top:12px">What to change</label>
-    <textarea id="edit-text" placeholder="swap the date to Saturday May 30, add gutter cleaning for $150"></textarea>
-    <button id="btn-edit">Update message</button>
-    <div id="result-edit"></div>
-  </div>
-
-  <!-- BOOK -->
-  <div class="card hidden" id="tab-book">
-    <label>Customer first name</label>
-    <input type="text" id="book-name" placeholder="Sarah" />
-    <label style="margin-top:12px">Date</label>
-    <input type="date" id="book-date" />
-    <label style="margin-top:12px">Time (optional, default 8:30 AM)</label>
-    <input type="text" id="book-time" placeholder="08:30" />
-    <button id="btn-book" class="green">Book it</button>
-    <div id="result-book"></div>
   </div>
 
   <!-- RECENT -->
@@ -171,14 +152,16 @@ function escapeHtml(s) {
 }
 
 // Tabs
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach(x => {
+    x.classList.toggle("active", x.dataset.tab === name);
+  });
+  ["new","recent"].forEach(id => {
+    document.getElementById("tab-" + id).classList.toggle("hidden", id !== name);
+  });
+}
 document.querySelectorAll(".tab").forEach(t => {
-  t.onclick = () => {
-    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
-    t.classList.add("active");
-    ["new","edit","book","recent"].forEach(id => {
-      document.getElementById("tab-" + id).classList.toggle("hidden", id !== t.dataset.tab);
-    });
-  };
+  t.onclick = () => switchTab(t.dataset.tab);
 });
 
 // Chat thread state
@@ -220,6 +203,9 @@ function appendBotTurn(data) {
     html += `<div class="dates"><div class="dates-label">Other date options</div>`;
     html += extraDates.map(d => `<span class="date-chip">${escapeHtml(d)}</span>`).join("");
     html += `</div>`;
+  }
+  if (data.calendar_url) {
+    html += `<div style="margin-top:12px"><a href="${data.calendar_url}" target="_blank"><button class="green" type="button">Add to Google Calendar</button></a></div>`;
   }
   if (data.airtable_url) {
     html += `<div class="meta" style="margin-top:10px"><a href="${data.airtable_url}" target="_blank">Open in Airtable →</a></div>`;
@@ -283,46 +269,26 @@ btnQuote.onclick = async () => {
   }
 };
 
-// Edit
-document.getElementById("btn-edit").onclick = async () => {
-  const name = document.getElementById("edit-name").value.trim();
-  const edit = document.getElementById("edit-text").value.trim();
-  if (!name || !edit) return;
-  const btn = document.getElementById("btn-edit");
-  const target = document.getElementById("result-edit");
-  btn.disabled = true; btn.textContent = "Updating...";
-  target.innerHTML = "";
-  try {
-    const { data } = await api("/api/update", { body: { name, edit } });
-    renderMessage(target, data);
-  } catch (e) {
-    target.innerHTML = `<div class="err">${e.message}</div>`;
-  } finally {
-    btn.disabled = false; btn.textContent = "Update message";
+// Recent — tap a lead to load into Chat
+function loadLeadIntoChat(lead) {
+  resetThread();
+  currentRecordId = lead.record_id;
+  if (lead.quote) {
+    appendBotTurn({
+      message: lead.quote,
+      parsed: { message: lead.quote, reasoning: "", extra_dates: [] },
+      airtable_url: lead.airtable_url,
+    });
   }
-};
+  notesLabel.textContent = "Follow-up (edit, question, book a date...)";
+  notesEl.placeholder = "add gutter cleaning, or book Sat May 23, or did you include the chimney?";
+  btnQuote.textContent = "Send follow-up";
+  btnNewConvo.classList.remove("hidden");
+  switchTab("new");
+}
+window.loadLeadIntoChat = loadLeadIntoChat;
+window.lastLeads = [];
 
-// Book
-document.getElementById("btn-book").onclick = async () => {
-  const name = document.getElementById("book-name").value.trim();
-  const date = document.getElementById("book-date").value;
-  const time = document.getElementById("book-time").value || "08:30";
-  if (!name || !date) return;
-  const btn = document.getElementById("btn-book");
-  const target = document.getElementById("result-book");
-  btn.disabled = true; btn.textContent = "Booking...";
-  target.innerHTML = "";
-  try {
-    const { data } = await api("/api/book", { body: { name, date, time } });
-    renderMessage(target, data);
-  } catch (e) {
-    target.innerHTML = `<div class="err">${e.message}</div>`;
-  } finally {
-    btn.disabled = false; btn.textContent = "Book it";
-  }
-};
-
-// Recent
 document.getElementById("btn-refresh").onclick = async () => {
   const target = document.getElementById("recent-list");
   target.innerHTML = "Loading...";
@@ -332,8 +298,9 @@ document.getElementById("btn-refresh").onclick = async () => {
       target.innerHTML = "<div class='meta'>No leads yet.</div>";
       return;
     }
-    target.innerHTML = data.leads.map(l => `
-      <div class="lead">
+    window.lastLeads = data.leads;
+    target.innerHTML = data.leads.map((l, i) => `
+      <div class="lead" onclick="loadLeadIntoChat(window.lastLeads[${i}])">
         <div class="lead-name">${escapeHtml(l.name || "(no name)")} — ${escapeHtml(l.status || "")}</div>
         <div class="lead-meta">${escapeHtml(l.address || "")}</div>
         <div class="lead-meta">${escapeHtml(l.date_of_conversation || "")}</div>

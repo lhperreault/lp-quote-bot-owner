@@ -115,12 +115,15 @@ CRITICAL OUTPUT FORMAT — return ONLY a JSON object with exactly these keys:
   "concerns": "any objections, special requests, or notes about partial-sides etc",
   "message": "the full customer-ready message text exactly as Luke would send it. Do NOT include any (Note to Luke: ...) line here — that goes in reasoning instead.",
   "reasoning": "Luke-facing breakdown: how you got to the price, what assumptions you made (sqft, condition, stories), what you included/excluded, and any flags Luke should verify before sending. Be specific with numbers. Example: 'Assumed 2000-2300 sqft, 2-story, clean. House wash $360 (2-story clean 2000-2300 tier). No porch mentioned so skipped. If actually 2300-2600 price goes to $390. Chimney not mentioned in notes so not included.'",
-  "extra_dates": ["3-4 additional booking dates beyond the two in the message, as short strings like 'Saturday May 30' or 'Thursday May 28'. Pick a mix of weekends and weekdays spanning the next 2-3 weeks from the season start. Never before May 16, 2026."]
+  "extra_dates": ["3-4 additional booking dates beyond the two in the message, as short strings like 'Saturday May 30' or 'Thursday May 28'. Pick a mix of weekends and weekdays spanning the next 2-3 weeks from the season start. Never before May 16, 2026."],
+  "booking_date": "YYYY-MM-DD ONLY if Luke has clearly said the customer wants to book/confirmed a specific date (e.g. 'book Saturday May 23', 'John confirmed the 30th', 'lock in Friday May 22'). Otherwise empty string.",
+  "booking_time": "HH:MM in 24h if Luke specified a time, else empty string (system defaults to 08:30)."
 }
 
 If Luke is asking a FOLLOW-UP question or requesting an EDIT on an existing quote, the user message will contain context with the previous message, reasoning, and original notes. In that case:
 - If it's a question (e.g. "did you account for the chimney?"), keep message unchanged and answer in reasoning.
 - If it's an edit (e.g. "add deck $150", "make the price $20 lower", "swap to the 30th"), update message AND reasoning to reflect the change.
+- If it's a booking confirmation (e.g. "book Saturday May 23", "customer confirmed the 30th"), set booking_date, briefly confirm in reasoning, and leave message unchanged unless Luke also asked to revise it.
 - Always return the full JSON, never partial.
 
 Return ONLY the JSON. No markdown fences, no preamble, no explanation."""

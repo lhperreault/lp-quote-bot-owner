@@ -14,15 +14,20 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from http.server import BaseHTTPRequestHandler
 
+from datetime import datetime, timedelta
+
 from lp_core import (
     AIRTABLE_BASE_ID,
     AIRTABLE_TABLE_ID,
     FIELD_CONCERNS,
+    FIELD_DATE_OF_BOOKING,
+    FIELD_LEAD_STATUS,
     FIELD_QUOTE,
     airtable_search_by_name,
     airtable_update,
     call_claude,
     check_auth,
+    gcal_one_tap_url,
     handle_options,
     json_response,
     parse_quote_json,
@@ -124,11 +129,45 @@ class handler(BaseHTTPRequestHandler):
         if new_reasoning:
             new_concerns += f"\nReasoning: {new_reasoning}"
 
+        update_fields = {
+            FIELD_QUOTE: parsed.get("message", ""),
+            FIELD_CONCERNS: new_concerns,
+        }
+
+        # Handle booking intent
+        calendar_url = None
+        booking_date = (parsed.get("booking_date") or "").strip()
+        if booking_date:
+            try:
+                dt = datetime.strptime(booking_date, "%Y-%m-%d")
+                time_str = (parsed.get("booking_time") or "08:30").strip() or "08:30"
+                try:
+                    hh, mm = [int(x) for x in time_str.split(":")[:2]]
+                except Exception:
+                    hh, mm = 8, 30
+                start = dt.replace(hour=hh, minute=mm)
+                end = start + timedelta(hours=4)
+                update_fields[FIELD_DATE_OF_BOOKING] = booking_date
+                update_fields[FIELD_LEAD_STATUS] = "Booked"
+                fields_now = record["fields"]
+                title = f"{fields_now.get('Name', 'Job')} — {fields_now.get('Service Type', '')}".strip(" —")
+                description = (
+                    f"{fields_now.get('Property Details', '')}\n\n"
+                    f"Phone: {fields_now.get('phone', '')}\n\n"
+                    f"---\n\n{parsed.get('message', '')}"
+                )
+                calendar_url = gcal_one_tap_url(
+                    title=title,
+                    start_iso=start.isoformat(),
+                    end_iso=end.isoformat(),
+                    description=description,
+                    location=fields_now.get("Property Details", ""),
+                )
+            except ValueError:
+                pass  # Bad date format — just ignore booking intent
+
         try:
-            airtable_update(record["id"], {
-                FIELD_QUOTE: parsed.get("message", ""),
-                FIELD_CONCERNS: new_concerns,
-            })
+            airtable_update(record["id"], update_fields)
         except Exception as e:
             return json_response(self, 502, {"error": f"Airtable update failed: {e}"})
 
@@ -136,5 +175,6 @@ class handler(BaseHTTPRequestHandler):
             "message": parsed.get("message", ""),
             "parsed": parsed,
             "record_id": record["id"],
+            "calendar_url": calendar_url,
             "airtable_url": f"https://airtable.com/{AIRTABLE_BASE_ID}/{AIRTABLE_TABLE_ID}/{record['id']}",
         })
