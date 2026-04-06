@@ -20,6 +20,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 import json
 from http.server import BaseHTTPRequestHandler
 
+from datetime import datetime, timezone
+from lp_agent import run_data_agent
 from lp_core import (
     AIRTABLE_BASE_ID,
     JOBS_TABLE_ID,
@@ -122,26 +124,8 @@ Answer Luke directly, briefly, in plain text. If you cannot answer from the data
 
 
 def _answer_question(notes: str) -> dict:
-    clients = list_all_clients_lite()
-    jobs = jobs_list_recent(limit=40)
-    cl_lines = [
-        f"- {c['id']}: {(c.get('fields') or {}).get('Name','')} | {(c.get('fields') or {}).get('Full name','')} | {(c.get('fields') or {}).get('Address','')}"
-        for c in clients[:300]
-    ]
-    job_lines = []
-    for j in jobs:
-        jf = j.get("fields") or {}
-        cids = jf.get("Client") or []
-        job_lines.append(
-            f"- {j['id']}: client={cids[0] if cids else ''} service={jf.get('Service type','')} status={jf.get('Lead status','')} quoted={jf.get('Quote date','')} booked={jf.get('Booking date','')} amt={jf.get('Quote amount','')}"
-        )
-    user_msg = (
-        f"Question:\n{notes}\n\n"
-        f"Clients ({len(cl_lines)}):\n" + "\n".join(cl_lines) + "\n\n"
-        f"Recent jobs ({len(job_lines)}):\n" + "\n".join(job_lines)
-    )
-    answer = call_claude(user_msg, system=QUESTION_SYSTEM, max_tokens=600)
-    return {"answer": answer}
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return run_data_agent(notes, today_iso=today)
 
 
 # ---------- HTTP handler ----------
