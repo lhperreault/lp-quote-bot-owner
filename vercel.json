@@ -1,6 +1,18 @@
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/", "destination": "/public/index.html" }
+  "builds": [
+    { "src": "api/quote.py", "use": "@vercel/python" },
+    { "src": "api/update.py", "use": "@vercel/python" },
+    { "src": "api/book.py", "use": "@vercel/python" },
+    { "src": "api/find.py", "use": "@vercel/python" },
+    { "src": "public/**", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/quote", "dest": "/api/quote.py" },
+    { "src": "/api/update", "dest": "/api/update.py" },
+    { "src": "/api/book", "dest": "/api/book.py" },
+    { "src": "/api/find", "dest": "/api/find.py" },
+    { "src": "/", "dest": "/public/index.html" },
+    { "src": "/(.*)", "dest": "/public/$1" }
   ]
 }
