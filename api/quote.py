@@ -69,6 +69,7 @@ class handler(BaseHTTPRequestHandler):
                 try:
                     result = run_followup_flow(latest, notes)
                     result["routed_via"] = "followup_preflight"
+                    result["matched_client_name"] = (likely.get("fields") or {}).get("Full name") or (likely.get("fields") or {}).get("Name", "")
                     return json_response(self, 200, result)
                 except Exception as e:
                     # Fall through to cold-lead path on failure

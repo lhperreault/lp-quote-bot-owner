@@ -568,16 +568,41 @@ def _extract_name_tokens(text: str) -> list:
 
 
 def find_likely_client_from_text(text: str) -> dict | None:
-    """Extract a likely client name from free text and return the unique
-    matching Client record. Returns None if 0 or >1 matches (caller should
-    fall back to the cold-lead path)."""
+    """Extract a likely client name from free text and return a matching
+    Client record. Strategy:
+      1. Extract name tokens (e.g. 'John S' or 'jane').
+      2. Fuzzy search Clients.
+      3. If 1 hit -> return it.
+      4. If >1 hits -> pick the one whose LATEST Job is most recent.
+         Rationale: 'John from today' / 'John I quoted earlier' / 'John S'
+         almost always refers to the client Luke last touched.
+      5. If 0 hits -> None (cold-lead path will create a new client).
+    """
     tokens = _extract_name_tokens(text)
     if not tokens:
         return None
-    matches = clients_search_fuzzy(" ".join(tokens), limit=5)
+    matches = clients_search_fuzzy(" ".join(tokens), limit=10)
+    if not matches:
+        return None
     if len(matches) == 1:
         return matches[0]
-    return None
+
+    # Multi-match disambiguation: rank by most recent Job activity.
+    scored = []
+    for c in matches:
+        try:
+            jobs = jobs_for_client(c["id"], limit=1)
+        except Exception:
+            jobs = []
+        latest_date = ""
+        if jobs:
+            jf = jobs[0].get("fields") or {}
+            latest_date = jf.get("Quote date") or jf.get("Booking date") or ""
+        scored.append((latest_date, c))
+
+    # Prefer clients that have at least one Job; among those, newest first.
+    scored.sort(key=lambda x: (bool(x[0]), x[0]), reverse=True)
+    return scored[0][1] if scored else None
 
 
 # ---------- Shared follow-up pipeline ----------
