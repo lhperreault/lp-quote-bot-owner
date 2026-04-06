@@ -5,6 +5,7 @@
     { "src": "api/update.py", "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
     { "src": "api/book.py",   "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
     { "src": "api/find.py",   "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "api/route.py",  "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
     { "src": "public/**",     "use": "@vercel/static" }
   ],
   "routes": [
@@ -12,6 +13,7 @@
     { "src": "/api/update", "dest": "/api/update.py" },
     { "src": "/api/book",   "dest": "/api/book.py" },
     { "src": "/api/find",   "dest": "/api/find.py" },
+    { "src": "/api/route",  "dest": "/api/route.py" },
     { "src": "/",           "dest": "/public/index.html" },
     { "src": "/(.*)",       "dest": "/public/$1" }
   ]
