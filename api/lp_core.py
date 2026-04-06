@@ -567,42 +567,178 @@ def _extract_name_tokens(text: str) -> list:
     return out
 
 
-def find_likely_client_from_text(text: str) -> dict | None:
-    """Extract a likely client name from free text and return a matching
-    Client record. Strategy:
-      1. Extract name tokens (e.g. 'John S' or 'jane').
-      2. Fuzzy search Clients.
-      3. If 1 hit -> return it.
-      4. If >1 hits -> pick the one whose LATEST Job is most recent.
-         Rationale: 'John from today' / 'John I quoted earlier' / 'John S'
-         almost always refers to the client Luke last touched.
-      5. If 0 hits -> None (cold-lead path will create a new client).
-    """
-    tokens = _extract_name_tokens(text)
-    if not tokens:
-        return None
-    matches = clients_search_fuzzy(" ".join(tokens), limit=10)
-    if not matches:
-        return None
-    if len(matches) == 1:
-        return matches[0]
-
-    # Multi-match disambiguation: rank by most recent Job activity.
-    scored = []
-    for c in matches:
+def list_all_clients_lite() -> list:
+    """Page through ALL clients, returning only id + Name/Full name/Address.
+    Cheap enough to feed to the AI resolver even with hundreds of clients."""
+    out: list = []
+    offset = None
+    while True:
+        params = {
+            "pageSize": 100,
+            "fields[]": ["Name", "Full name", "Address"],
+        }
+        if offset:
+            params["offset"] = offset
         try:
-            jobs = jobs_for_client(c["id"], limit=1)
+            res = requests.get(
+                clients_url(),
+                headers=airtable_headers(),
+                params=params,
+                timeout=20,
+            )
         except Exception:
-            jobs = []
-        latest_date = ""
-        if jobs:
-            jf = jobs[0].get("fields") or {}
-            latest_date = jf.get("Quote date") or jf.get("Booking date") or ""
-        scored.append((latest_date, c))
+            break
+        if res.status_code != 200:
+            break
+        data = res.json()
+        out.extend(data.get("records", []))
+        offset = data.get("offset")
+        if not offset:
+            break
+        if len(out) >= 2000:
+            break
+    return out
 
-    # Prefer clients that have at least one Job; among those, newest first.
-    scored.sort(key=lambda x: (bool(x[0]), x[0]), reverse=True)
-    return scored[0][1] if scored else None
+
+def ai_resolve_client_lite(text: str, candidates: list) -> str | None:
+    """Ask Haiku which client matches Luke's text, given a lightweight list."""
+    if not candidates:
+        return None
+    lines = []
+    for c in candidates:
+        cf = c.get("fields") or {}
+        lines.append(
+            f"- {c['id']}: name={cf.get('Name','')} | full={cf.get('Full name','')} | addr={cf.get('Address','')}"
+        )
+    user_msg = (
+        f"Luke wrote:\n{text}\n\n"
+        f"All clients:\n" + "\n".join(lines) + "\n\n"
+        "Which client is he referring to? Reply with ONLY the rec id or 'none'."
+    )
+    try:
+        raw = call_claude(user_msg, system=_RESOLVER_SYSTEM, max_tokens=30)
+    except Exception:
+        return None
+    raw = (raw or "").strip().strip("\"'`,. ").split()[0:1]
+    if not raw:
+        return None
+    val = raw[0]
+    return val if val.startswith("rec") else None
+
+
+def list_recent_clients_with_jobs(limit: int = 20) -> list:
+    """Return up to N most-recently-active clients. Each result has its
+    latest Job attached as `_latest_job`. Used by the AI preflight resolver."""
+    try:
+        jobs = jobs_list_recent(limit=limit * 2)
+    except Exception:
+        return []
+    client_ids = []
+    for j in jobs:
+        jf = j.get("fields") or {}
+        cids = jf.get(JOB_CLIENT) or jf.get("Client") or []
+        if cids:
+            client_ids.append(cids[0])
+    if not client_ids:
+        return []
+    cmap = fetch_clients_by_ids(client_ids)
+    out: list = []
+    seen: set = set()
+    for j in jobs:
+        jf = j.get("fields") or {}
+        cids = jf.get(JOB_CLIENT) or jf.get("Client") or []
+        if not cids:
+            continue
+        cid = cids[0]
+        if cid in seen:
+            continue
+        seen.add(cid)
+        client = cmap.get(cid)
+        if not client:
+            continue
+        client["_latest_job"] = j
+        out.append(client)
+        if len(out) >= limit:
+            break
+    return out
+
+
+_RESOLVER_SYSTEM = """You are a CRM client resolver. You match Luke's free-text shorthand to ONE existing client record in his pressure-washing CRM.
+
+Return ONLY a single value:
+- the matching record id starting with 'rec', OR
+- the literal word 'none' if no client clearly matches.
+
+Do NOT explain. Do NOT add punctuation. Do NOT wrap in quotes. Just the id or 'none'.
+
+Match aggressively when Luke clearly refers to an existing customer (e.g. "John from today", "John S", "Jane the patio one", "the Quakertown house", "Sarah I quoted yesterday", "update John's booking"). Use first names, initials, addresses, service types, dates, and amounts to disambiguate.
+
+Return 'none' only if:
+- Luke is clearly dictating a brand new cold lead (full property details he wouldn't repeat for an existing client),
+- the reference is genuinely ambiguous between two equally-likely clients,
+- or no listed client matches at all."""
+
+
+def ai_resolve_client(text: str, candidates: list) -> str | None:
+    """Ask Haiku which candidate client matches Luke's text. Returns a rec id
+    or None."""
+    if not candidates:
+        return None
+    lines = []
+    for c in candidates:
+        cf = c.get("fields") or {}
+        jf = (c.get("_latest_job") or {}).get("fields") or {}
+        amount = jf.get("Quote amount")
+        amt = f" ${amount:g}" if isinstance(amount, (int, float)) else ""
+        lines.append(
+            f"- {c['id']}: name={cf.get('Name','')} | full={cf.get('Full name','')} "
+            f"| addr={cf.get('Address','')} | service={jf.get('Service type','')} "
+            f"| quoted={jf.get('Quote date','')} | booked={jf.get('Booking date','')} "
+            f"| status={jf.get('Lead status','')}{amt}"
+        )
+    user_msg = (
+        f"Luke wrote:\n{text}\n\n"
+        f"Recent clients:\n" + "\n".join(lines) + "\n\n"
+        "Which client is he referring to? Reply with ONLY the rec id or 'none'."
+    )
+    try:
+        raw = call_claude(user_msg, system=_RESOLVER_SYSTEM, max_tokens=30)
+    except Exception:
+        return None
+    raw = (raw or "").strip().strip("\"'`,. ").split()[0:1]
+    if not raw:
+        return None
+    val = raw[0]
+    if val.startswith("rec"):
+        return val
+    return None
+
+
+def find_likely_client_from_text(text: str) -> dict | None:
+    """AI-driven preflight: ask Haiku to match Luke's free text against the
+    20 most recently active clients. Returns the matched Client record (with
+    `_latest_job` attached) or None."""
+    if not text or not text.strip():
+        return None
+    # Stage 1: lightweight pass over ALL clients (name/full name/address only)
+    lite = list_all_clients_lite()
+    if not lite:
+        return None
+    matched_id = ai_resolve_client_lite(text, lite)
+    if not matched_id:
+        return None
+    # Stage 2: fetch full client + their latest job
+    cmap = fetch_clients_by_ids([matched_id])
+    client = cmap.get(matched_id)
+    if not client:
+        return None
+    try:
+        past = jobs_for_client(matched_id, limit=1)
+    except Exception:
+        past = []
+    if past:
+        client["_latest_job"] = past[0]
+    return client
 
 
 # ---------- Shared follow-up pipeline ----------

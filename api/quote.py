@@ -58,13 +58,14 @@ class handler(BaseHTTPRequestHandler):
             likely = None
 
         if likely:
-            try:
-                past = jobs_for_client(likely["id"], limit=4)
-            except Exception:
-                past = []
-            if past:
-                # Treat as a follow-up on the latest job for this client
-                latest = past[0]
+            latest = likely.get("_latest_job")
+            if not latest:
+                try:
+                    past = jobs_for_client(likely["id"], limit=4)
+                except Exception:
+                    past = []
+                latest = past[0] if past else None
+            if latest:
                 latest["_client"] = likely
                 try:
                     result = run_followup_flow(latest, notes)
