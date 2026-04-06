@@ -157,14 +157,22 @@ CRITICAL OUTPUT FORMAT — return ONLY a JSON object with exactly these keys:
   "reasoning": "Luke-facing breakdown: how you got to the price, what assumptions you made (sqft, condition, stories), what you included/excluded, and any flags Luke should verify before sending. Be specific with numbers. Example: 'Assumed 2000-2300 sqft, 2-story, clean. House wash $360 (2-story clean 2000-2300 tier). No porch mentioned so skipped. If actually 2300-2600 price goes to $390. Chimney not mentioned in notes so not included.'",
   "extra_dates": ["3-4 additional booking dates beyond the two in the message, as short strings like 'Saturday May 30' or 'Thursday May 28'. Pick a mix of weekends and weekdays spanning the next 2-3 weeks from the season start. Never before May 16, 2026."],
   "booking_date": "YYYY-MM-DD ONLY if Luke has clearly said the customer wants to book/confirmed a specific date (e.g. 'book Saturday May 23', 'John confirmed the 30th', 'lock in Friday May 22'). Otherwise empty string.",
-  "booking_time": "HH:MM in 24h if Luke specified a time, else empty string (system defaults to 08:30)."
+  "booking_time": "HH:MM in 24h if Luke specified a time, else empty string (system defaults to 08:30).",
+  "intent": "one of: 'edit' | 'new_job' | 'book_confirmed'. Defaults to 'edit'. Only ever 'new_job' when Luke explicitly wants a FRESH quote for an existing client (keywords: repeat, again, another, this year, new job, add a quote). Only 'book_confirmed' when Luke is locking in a date on an EXISTING job."
 }
 
-If Luke is asking a FOLLOW-UP question or requesting an EDIT on an existing quote, the user message will contain context with the previous message, reasoning, and original notes. In that case:
-- If it's a question (e.g. "did you account for the chimney?"), keep message unchanged and answer in reasoning.
-- If it's an edit (e.g. "add deck $150", "make the price $20 lower", "swap to the 30th"), update message AND reasoning to reflect the change.
-- If it's a booking confirmation (e.g. "book Saturday May 23", "customer confirmed the 30th"), set booking_date, briefly confirm in reasoning, and leave message unchanged unless Luke also asked to revise it.
-- Always return the full JSON, never partial.
+If Luke is asking a FOLLOW-UP on an EXISTING CLIENT, the user message will contain a CLIENT HISTORY section (0–3 past jobs, most recent first) and the LATEST JOB being referenced. You must decide what Luke wants and set the `intent` field accordingly:
+
+- "edit": Luke is tweaking the LATEST job's quote (e.g. "add deck $150", "drop $20", "swap to the 30th", "did you account for the chimney?"). Update message and reasoning. This is the DEFAULT if unsure.
+- "book_confirmed": Luke is confirming the booking on the LATEST job (e.g. "book Saturday May 23", "John confirmed the 7th", "locked in Friday"). Set `booking_date`, briefly confirm in reasoning, leave message unchanged unless Luke also asked to revise.
+- "new_job": Luke wants a BRAND NEW quote for the same client — a repeat job or additional service at a later date. Triggers: "repeat", "again", "another quote", "wants [service] this year", "add a new quote", "new job for", "book another", "doing [service] too". For this case:
+  - Write a FRESH customer-facing message referencing past work naturally ("Good to hear from you again, Jane — here's the estimate...")
+  - Use the CLIENT HISTORY prices as a reference point (e.g. "Same price as last year" or "We did the house for $420 last time")
+  - Fill all the quote fields fresh (service_type, property_details, concerns, etc.)
+
+If it's a QUESTION (e.g. "did you account for the chimney?"), intent stays "edit", keep message unchanged, answer in reasoning.
+
+Always return the full JSON with every key present. Never partial.
 
 Return ONLY the JSON. No markdown fences, no preamble, no explanation."""
 
@@ -367,6 +375,43 @@ def jobs_list_recent(limit: int = 20, formula: str | None = None) -> list:
 def jobs_for_client(client_id: str, limit: int = 10) -> list:
     formula = f"FIND('{client_id}', ARRAYJOIN({{Client}}))"
     return jobs_list_recent(limit=limit, formula=formula)
+
+
+def format_client_history(client: dict | None, jobs: list, current_job_id: str | None = None) -> str:
+    """Format a client + their past jobs as a plain-text context block for Claude.
+    `current_job_id` is excluded from the history list so the LATEST JOB isn't
+    duplicated into CLIENT HISTORY."""
+    lines = []
+    if client:
+        cf = client.get("fields", {}) or {}
+        parts = [
+            f"Name: {cf.get('Name','')} ({cf.get('Full name','')})".strip(),
+            f"Phone: {cf.get('Phone','')}" if cf.get('Phone') else "",
+            f"Address: {cf.get('Address','')}" if cf.get('Address') else "",
+            f"Stories: {cf.get('Stories','')}" if cf.get('Stories') else "",
+            f"Sqft: {cf.get('Sqft','')}" if cf.get('Sqft') else "",
+            f"Material: {cf.get('Material','')}" if cf.get('Material') else "",
+            f"Tags: {', '.join(cf.get('Tags', []))}" if cf.get('Tags') else "",
+            f"Notes: {cf.get('Notes','')}" if cf.get('Notes') else "",
+        ]
+        lines.append("CLIENT:\n" + "\n".join(p for p in parts if p))
+
+    past = [j for j in (jobs or []) if j.get("id") != current_job_id]
+    if past:
+        lines.append(f"\nCLIENT HISTORY ({len(past)} past job(s), most recent first):")
+        for i, j in enumerate(past, 1):
+            jf = j.get("fields", {}) or {}
+            amount = jf.get("Quote amount")
+            amt_str = f" — ${amount:g}" if isinstance(amount, (int, float)) else ""
+            lines.append(
+                f"\n#{i} {jf.get('Quote date','(no date)')}{amt_str}\n"
+                f"  Service: {jf.get('Service type','')}\n"
+                f"  Status: {jf.get('Lead status','')}\n"
+                f"  Quote: {(jf.get('Quote','') or '').strip()[:600]}"
+            )
+    else:
+        lines.append("\nCLIENT HISTORY: (none — this is the first job for this client)")
+    return "\n".join(lines)
 
 
 def jobs_get(record_id: str) -> dict:
