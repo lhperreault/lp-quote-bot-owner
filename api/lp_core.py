@@ -830,15 +830,27 @@ def run_followup_flow(job_record: dict, edit_text: str) -> dict:
     original_notes = _record_field_str(job_record, JOB_CONVO_LOG, "Conversation log")
     history_block = format_client_history(client, past_jobs, current_job_id=job_record["id"])
 
+    # Pull cross-channel conversation history (website chatbot, SMS, ads, etc.)
+    try:
+        convos = list_conversations_for_client(client_id, limit=30) if client_id else []
+    except Exception:
+        convos = []
+    convo_block = format_conversation_log(convos)
+
     user_msg = (
         f"FOLLOW-UP on an EXISTING CLIENT.\n\n"
         f"{history_block}\n\n"
+        f"FULL CONVERSATION HISTORY (every channel — LP chatbot, website chatbot, SMS, ads):\n"
+        f"{convo_block}\n\n"
         f"LATEST JOB (the one Luke is referring to):\n"
         f"  Service: {_record_field_str(job_record, JOB_SERVICE_TYPE, 'Service type')}\n"
         f"  Original notes from Luke: {original_notes}\n"
         f"  Previous customer-facing message:\n{existing_quote}\n"
         f"  Previous reasoning/history: {existing_concerns}\n\n"
         f"LUKE'S NEW INPUT: {edit_text}\n\n"
+        f"IMPORTANT: The job above may have been created by a different channel "
+        f"(website chatbot, ad form, etc.) so some Job fields may be empty. "
+        f"Always trust the CONVERSATION HISTORY and CLIENT record as the source of truth.\n\n"
         f"Decide intent ('edit' | 'new_job' | 'book_confirmed') and return the standard JSON."
     )
 
@@ -904,6 +916,42 @@ def run_followup_flow(job_record: dict, edit_text: str) -> dict:
 
 
 # ---------- Airtable: Conversations ----------
+
+def list_conversations_for_client(client_id: str, limit: int = 30) -> list:
+    """All Conversations rows for a client across every channel
+    (LP chatbot, website chatbot, ads, SMS, etc.), oldest-first."""
+    if not client_id:
+        return []
+    formula = f"FIND('{client_id}', ARRAYJOIN({{Client}}))"
+    params = {
+        "filterByFormula": formula,
+        "maxRecords": limit,
+        "sort[0][field]": "Timestamp",
+        "sort[0][direction]": "asc",
+    }
+    try:
+        res = requests.get(conversations_url(), headers=airtable_headers(), params=params, timeout=20)
+    except Exception:
+        return []
+    if res.status_code != 200:
+        return []
+    return res.json().get("records", [])
+
+
+def format_conversation_log(convos: list) -> str:
+    if not convos:
+        return "(no conversation history in any channel)"
+    lines = []
+    for c in convos:
+        f = c.get("fields") or {}
+        ts = (f.get("Timestamp") or "")[:16].replace("T", " ")
+        ch = f.get("Channel", "")
+        author = f.get("Author", "")
+        direction = f.get("Direction", "")
+        msg = (f.get("Message") or "").strip()
+        lines.append(f"[{ts}] ({ch} / {direction} / {author}) {msg}")
+    return "\n".join(lines)
+
 
 def create_conversation(
     client_id: str,
