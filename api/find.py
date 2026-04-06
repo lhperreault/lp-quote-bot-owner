@@ -1,9 +1,11 @@
 """
-GET /api/find?name=Sarah     -> search by first name (fuzzy)
-GET /api/find?q=kate quakertown -> multi-token fuzzy across name/address
-GET /api/find                -> recent 10 leads
+GET /api/find?q=kate quakertown -> multi-token fuzzy search across Clients
+GET /api/find?name=Sarah        -> same, single token
+GET /api/find                   -> 20 most recent Jobs
 
-Returns: {"leads": [{record_id, name, address, status, date, quote}, ...]}
+Returns: {"leads": [{record_id, client_id, name, full_name, phone, address,
+                     service_type, status, date_of_conversation,
+                     date_of_booking, quote, airtable_url}, ...]}
 """
 
 import os, sys
@@ -14,30 +16,41 @@ from urllib.parse import urlparse, parse_qs
 
 from lp_core import (
     AIRTABLE_BASE_ID,
-    AIRTABLE_TABLE_ID,
-    airtable_fuzzy_search,
-    airtable_list_recent,
-    airtable_search_by_name,
+    JOBS_TABLE_ID,
+    JOB_CLIENT,
+    JOB_SERVICE_TYPE,
+    JOB_LEAD_STATUS,
+    JOB_QUOTE_DATE,
+    JOB_BOOKING_DATE,
+    JOB_QUOTE,
     check_auth,
+    fetch_clients_by_ids,
     handle_options,
+    jobs_list_recent,
     json_response,
+    search_jobs_by_client_name,
 )
 
 
-def _shape(record: dict) -> dict:
-    f = record.get("fields", {})
+def _shape(job: dict, clients_by_id: dict) -> dict:
+    jf = job.get("fields", {}) or {}
+    client_ids = jf.get(JOB_CLIENT) or jf.get("Client") or []
+    # search_jobs_by_client_name may have attached the client inline
+    client = job.get("_client") or (clients_by_id.get(client_ids[0]) if client_ids else None)
+    cf = (client.get("fields", {}) if client else {}) or {}
     return {
-        "record_id": record["id"],
-        "name": f.get("Name", ""),
-        "full_name": f.get("Full name", ""),
-        "phone": f.get("phone", ""),
-        "address": f.get("Property Details", ""),
-        "service_type": f.get("Service Type", ""),
-        "status": f.get("Lead Status", ""),
-        "date_of_conversation": f.get("Date of Conversation", ""),
-        "date_of_booking": f.get("Date of booking", ""),
-        "quote": f.get("Quote", ""),
-        "airtable_url": f"https://airtable.com/{AIRTABLE_BASE_ID}/{AIRTABLE_TABLE_ID}/{record['id']}",
+        "record_id": job["id"],
+        "client_id": client_ids[0] if client_ids else None,
+        "name": cf.get("Name", ""),
+        "full_name": cf.get("Full name", ""),
+        "phone": cf.get("Phone", ""),
+        "address": cf.get("Address", ""),
+        "service_type": jf.get(JOB_SERVICE_TYPE) or jf.get("Service type", ""),
+        "status": jf.get(JOB_LEAD_STATUS) or jf.get("Lead status", ""),
+        "date_of_conversation": jf.get(JOB_QUOTE_DATE) or jf.get("Quote date", ""),
+        "date_of_booking": jf.get(JOB_BOOKING_DATE) or jf.get("Booking date", ""),
+        "quote": jf.get(JOB_QUOTE) or jf.get("Quote", ""),
+        "airtable_url": f"https://airtable.com/{AIRTABLE_BASE_ID}/{JOBS_TABLE_ID}/{job['id']}",
     }
 
 
@@ -54,13 +67,18 @@ class handler(BaseHTTPRequestHandler):
         q = (qs.get("q") or [""])[0].strip()
 
         try:
-            if q:
-                records = airtable_fuzzy_search(q, limit=10)
-            elif name:
-                records = airtable_search_by_name(name, limit=10)
+            if q or name:
+                records = search_jobs_by_client_name(q or name, limit=10)
+                clients_by_id = {}  # already embedded via _client
             else:
-                records = airtable_list_recent(limit=20)
+                records = jobs_list_recent(limit=20)
+                # Batch-fetch all referenced clients in one call
+                client_ids = []
+                for r in records:
+                    ids = r.get("fields", {}).get(JOB_CLIENT) or r.get("fields", {}).get("Client") or []
+                    client_ids.extend(ids)
+                clients_by_id = fetch_clients_by_ids(client_ids)
         except Exception as e:
             return json_response(self, 502, {"error": str(e)})
 
-        return json_response(self, 200, {"leads": [_shape(r) for r in records]})
+        return json_response(self, 200, {"leads": [_shape(r, clients_by_id) for r in records]})

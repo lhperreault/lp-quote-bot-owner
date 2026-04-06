@@ -4,8 +4,9 @@ Body: {"notes": "raw call notes from Luke"}
 
 Returns: {
   "message": "the customer-ready text",
-  "record_id": "recXXXXXXXXXXXXXX",
-  "parsed": {name, phone, address, ...},
+  "record_id": "recXXX",       # Job record id
+  "client_id": "recXXX",       # Client record id
+  "parsed": {...},
   "airtable_url": "https://airtable.com/..."
 }
 """
@@ -17,14 +18,15 @@ from http.server import BaseHTTPRequestHandler
 
 from lp_core import (
     AIRTABLE_BASE_ID,
-    AIRTABLE_TABLE_ID,
-    airtable_create_lead,
+    JOBS_TABLE_ID,
     call_claude,
     check_auth,
+    create_job,
     handle_options,
     json_response,
     parse_quote_json,
     read_json_body,
+    upsert_client,
 )
 
 
@@ -56,7 +58,8 @@ class handler(BaseHTTPRequestHandler):
             return json_response(self, 502, {"error": f"Could not parse Claude response: {e}", "raw": raw})
 
         try:
-            record = airtable_create_lead(parsed, notes)
+            client_id = upsert_client(parsed)
+            record = create_job(parsed, notes, client_id, source_channel="Phone call")
         except Exception as e:
             # Still return the message so Luke isn't blocked if Airtable hiccups
             return json_response(self, 207, {
@@ -69,5 +72,6 @@ class handler(BaseHTTPRequestHandler):
             "message": parsed.get("message", ""),
             "parsed": parsed,
             "record_id": record["id"],
-            "airtable_url": f"https://airtable.com/{AIRTABLE_BASE_ID}/{AIRTABLE_TABLE_ID}/{record['id']}",
+            "client_id": client_id,
+            "airtable_url": f"https://airtable.com/{AIRTABLE_BASE_ID}/{JOBS_TABLE_ID}/{record['id']}",
         })

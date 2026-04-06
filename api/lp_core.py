@@ -1,8 +1,9 @@
 """
 LP Pressure Washing — shared core module.
 
-Holds the system prompt, Anthropic client, Airtable helpers, and the
-Google Calendar one-tap URL builder. Imported by every endpoint in /api.
+Owns the system prompt, Anthropic client, Airtable (Clients/Jobs/Conversations)
+helpers, and the Google Calendar one-tap URL builder. Imported by every
+endpoint in /api.
 
 Standard library + `requests` only. No frameworks.
 """
@@ -22,21 +23,60 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 AIRTABLE_PAT = os.environ.get("AIRTABLE_PAT", "")
 AIRTABLE_BASE_ID = os.environ.get("AIRTABLE_BASE_ID", "appqep8mBMzhS6lFt")
-AIRTABLE_TABLE_ID = os.environ.get("AIRTABLE_TABLE_ID", "tblJzQYXCTNhGhtku")
 
-# Airtable field IDs (LP PW Bot → Main)
-FIELD_NAME = "fldtnhr8vIlhmBdff"
-FIELD_FULL_NAME = "fldnscbWozuyJczK8"
-FIELD_EMAIL = "fldb0Uebxey0rEdMz"
-FIELD_PHONE = "fldXE9o03cUeJhZzC"
-FIELD_SERVICE_TYPE = "fldI1JvqPHOMVPbVt"
-FIELD_PROPERTY_DETAILS = "fldtk4GH3P2cGsD4z"
-FIELD_QUOTE = "fldnqd4dcULAQb365"
-FIELD_CONCERNS = "fldI7BQVTbCEOIWiK"
-FIELD_DATE_OF_CONVO = "fldRiJUuyCguVNcQt"
-FIELD_DATE_OF_BOOKING = "fldnxxVYv67LyacEX"
-FIELD_LEAD_STATUS = "fldZkYJFz5fXIAD86"
-FIELD_CONVO_LOG = "fldefxAGh0MduG7iK"
+# ---------- Airtable tables ----------
+
+CLIENTS_TABLE_ID = os.environ.get("CLIENTS_TABLE_ID", "tblWp6sapdFp6M8mt")
+JOBS_TABLE_ID = os.environ.get("JOBS_TABLE_ID", "tblcyYnWmhIyLjANX")
+CONVERSATIONS_TABLE_ID = os.environ.get("CONVERSATIONS_TABLE_ID", "tblY9f1ZTYZLvMT1n")
+
+# Legacy alias for endpoints / tests that still reference it.
+AIRTABLE_TABLE_ID = JOBS_TABLE_ID
+
+# ---------- Clients field IDs ----------
+CLIENT_NAME = "fld0Vf32bygclOPN4"
+CLIENT_FULL_NAME = "fldhQwijwfb8k1rQf"
+CLIENT_PHONE = "fldORRqmjDKYoCo1h"
+CLIENT_EMAIL = "fldgioEKyBmrfc1jL"
+CLIENT_ADDRESS = "fldvvPyRQSllCWOB6"
+CLIENT_STORIES = "fld2obLMYoHT7mpPB"
+CLIENT_SQFT = "fldZVNZy9nPiX9MWo"
+CLIENT_MATERIAL = "fldQPZarHvt2BbK5D"
+CLIENT_DEFAULT_CONDITION = "fldpcvNM1TmT7Yx85"
+CLIENT_SOURCE = "fldHyrB16mGR5MHaD"
+CLIENT_TAGS = "fldfowCjwqq5RlMHY"
+CLIENT_FIRST_CONTACTED = "fldOFkS06SzquRFCS"
+CLIENT_NOTES = "fldNmP4W9cbzOdv4v"
+
+# ---------- Jobs field IDs ----------
+JOB_ID = "fldiu0Ziga90WMzWy"
+JOB_CLIENT = "fld7vFKjZNFUtkCTs"
+JOB_SERVICE_TYPE = "fldkaiAQzkbCqRwlt"
+JOB_PROPERTY_SNAPSHOT = "fldrOSSPgUe1RmCn0"
+JOB_QUOTE = "fldWw6osCMhribmXK"
+JOB_AMOUNT = "fld70o03Y4wNQvWld"
+JOB_REASONING = "fld1g1NtinRCPIqnB"
+JOB_QUOTE_DATE = "fld6OiN5gU5cRJkSo"
+JOB_BOOKING_DATE = "fldoo6nuea7Epclfz"
+JOB_COMPLETION_DATE = "fldHYjEvr9oGE6wlh"
+JOB_LEAD_STATUS = "fldOCS468AAlxtFqQ"
+JOB_FINAL_PAID = "fldEaRteK7YsghAWj"
+JOB_DISCOUNT = "fldlC0j9CXs0GiUX1"
+JOB_CONCERNS = "fldKK0WXnAlZKwINY"
+JOB_CONVO_LOG = "fld7pvtlD4Op3nuif"
+JOB_SOURCE_CHANNEL = "fld8mxhfBCDqoPtJg"
+
+# ---------- Conversations field IDs ----------
+CONVO_TURN = "fldNGrduf8wNwtxty"
+CONVO_CLIENT = "fldZewasWA4bE5GXO"
+CONVO_JOB = "fldEWuGVXIMPCJxah"
+CONVO_CHANNEL = "fldf435AhgzGCNg9w"
+CONVO_DIRECTION = "fldPMN9NCHUAcQYYH"
+CONVO_AUTHOR = "fldKT673HIz9JjJlP"
+CONVO_MESSAGE = "fld12l4djM9sEkyja"
+CONVO_TIMESTAMP = "fldth3MChCsfiF1ur"
+CONVO_INTENT = "fld4hY69gGdmeogHj"
+CONVO_SUMMARY = "fld25FTNQu7zCt4PN"
 
 
 # ---------- System prompt ----------
@@ -163,37 +203,42 @@ def call_claude(user_message: str, system: str = SYSTEM_PROMPT, max_tokens: int 
         raise RuntimeError(f"Anthropic error {res.status_code}: {res.text[:500]}")
 
     data = res.json()
-    # Response shape: {content: [{type: "text", text: "..."}], ...}
     parts = data.get("content", [])
     text_parts = [p.get("text", "") for p in parts if p.get("type") == "text"]
     return "".join(text_parts).strip()
 
 
 def parse_quote_json(raw: str) -> dict:
-    """
-    Pull a JSON object out of Claude's response. Defensive: handles markdown
-    fences, leading/trailing prose, and extracts the first {...} block if
-    needed.
-    """
+    """Pull a JSON object out of Claude's response. Handles markdown fences."""
     text = raw.strip()
-    # Strip markdown fences if present
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        # Fallback: find the first {...} block
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if not match:
             raise RuntimeError(f"Could not parse JSON from Claude response: {raw[:300]}")
         return json.loads(match.group(0))
 
 
-# ---------- Airtable ----------
+# ---------- Airtable: low-level ----------
 
-def airtable_url(*path: str) -> str:
-    return "https://api.airtable.com/v0/" + "/".join([AIRTABLE_BASE_ID, AIRTABLE_TABLE_ID, *path])
+def airtable_url(table_id: str, *path: str) -> str:
+    return "https://api.airtable.com/v0/" + "/".join([AIRTABLE_BASE_ID, table_id, *path])
+
+
+def clients_url(*path: str) -> str:
+    return airtable_url(CLIENTS_TABLE_ID, *path)
+
+
+def jobs_url(*path: str) -> str:
+    return airtable_url(JOBS_TABLE_ID, *path)
+
+
+def conversations_url(*path: str) -> str:
+    return airtable_url(CONVERSATIONS_TABLE_ID, *path)
 
 
 def airtable_headers() -> dict:
@@ -203,63 +248,177 @@ def airtable_headers() -> dict:
     }
 
 
-def airtable_create_lead(parsed: dict, raw_notes: str) -> dict:
-    """Create a new lead record. Returns the created record dict."""
-    fields = {
-        FIELD_NAME: parsed.get("name", ""),
-        FIELD_FULL_NAME: parsed.get("full_name", ""),
-        FIELD_EMAIL: parsed.get("email", "") or None,  # typed fields reject empty string
-        FIELD_PHONE: parsed.get("phone", "") or None,
-        FIELD_SERVICE_TYPE: parsed.get("service_type", "") or None,
-        FIELD_PROPERTY_DETAILS: parsed.get("property_details", "") or None,
-        FIELD_QUOTE: parsed.get("message", ""),
-        FIELD_CONCERNS: (parsed.get("concerns", "") + ("\n\n---\nReasoning:\n" + parsed.get("reasoning", "") if parsed.get("reasoning") else "")).strip(),
-        FIELD_DATE_OF_CONVO: datetime.now(timezone.utc).isoformat(),
-        FIELD_LEAD_STATUS: "Quoted",
-        FIELD_CONVO_LOG: raw_notes,
-    }
-    # Strip None values so Airtable doesn't choke
-    fields = {k: v for k, v in fields.items() if v is not None}
+def _escape_formula(s: str) -> str:
+    return s.replace("\\", "\\\\").replace("'", "\\'")
 
+
+def _strip_none(d: dict) -> dict:
+    return {k: v for k, v in d.items() if v is not None and v != ""}
+
+
+def _today_iso() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def _extract_amount(text: str) -> float | None:
+    """Pull a total-dollar number out of the quote message. Prefers a number
+    next to the word 'total', else takes the max dollar amount found."""
+    if not text:
+        return None
+    m = re.search(r"\$(\d+(?:,\d{3})*(?:\.\d{2})?)\s*total", text, re.I)
+    if m:
+        try:
+            return float(m.group(1).replace(",", ""))
+        except ValueError:
+            pass
+    nums = []
+    for raw in re.findall(r"\$(\d+(?:,\d{3})*(?:\.\d{2})?)", text):
+        try:
+            nums.append(float(raw.replace(",", "")))
+        except ValueError:
+            continue
+    return max(nums) if nums else None
+
+
+# ---------- Airtable: Clients ----------
+
+def clients_search(formula: str, limit: int = 10) -> list:
+    res = requests.get(
+        clients_url(),
+        headers=airtable_headers(),
+        params={"filterByFormula": formula, "maxRecords": limit},
+        timeout=20,
+    )
+    if res.status_code != 200:
+        raise RuntimeError(f"Clients search error {res.status_code}: {res.text[:500]}")
+    return res.json().get("records", [])
+
+
+def fetch_clients_by_ids(ids: list) -> dict:
+    """Batch-fetch clients by rec IDs. Returns {id: record}."""
+    ids = [i for i in set(ids) if i]
+    if not ids:
+        return {}
+    clauses = [f"RECORD_ID()='{rid}'" for rid in ids]
+    formula = "OR(" + ", ".join(clauses) + ")"
+    records = clients_search(formula, limit=100)
+    return {r["id"]: r for r in records}
+
+
+def upsert_client(parsed: dict, source: str = "") -> str:
+    """Find an existing client by phone → email → full name, else create one.
+    Returns the client record_id."""
+    phone = (parsed.get("phone") or "").strip()
+    email = (parsed.get("email") or "").strip()
+    full_name = (parsed.get("full_name") or "").strip()
+    name = (parsed.get("name") or "").strip()
+
+    lookups = []
+    if phone:
+        lookups.append(f"{{Phone}} = '{_escape_formula(phone)}'")
+    if email:
+        lookups.append(f"LOWER({{Email}}) = '{_escape_formula(email.lower())}'")
+    if full_name:
+        lookups.append(f"LOWER({{Full name}}) = '{_escape_formula(full_name.lower())}'")
+
+    for formula in lookups:
+        matches = clients_search(formula, limit=1)
+        if matches:
+            return matches[0]["id"]
+
+    # Create new client
+    fallback_name = name or (full_name.split()[0] if full_name else "Unknown")
+    fields = _strip_none({
+        CLIENT_NAME: fallback_name,
+        CLIENT_FULL_NAME: full_name or None,
+        CLIENT_PHONE: phone or None,
+        CLIENT_EMAIL: email or None,
+        CLIENT_ADDRESS: (parsed.get("property_details") or "") or None,
+        CLIENT_SOURCE: source or None,
+        CLIENT_FIRST_CONTACTED: _today_iso(),
+    })
     res = requests.post(
-        airtable_url(),
+        clients_url(),
         headers=airtable_headers(),
         json={"records": [{"fields": fields}]},
         timeout=20,
     )
     if res.status_code not in (200, 201):
-        raise RuntimeError(f"Airtable create error {res.status_code}: {res.text[:500]}")
-    return res.json()["records"][0]
+        raise RuntimeError(f"Client create error {res.status_code}: {res.text[:500]}")
+    return res.json()["records"][0]["id"]
 
 
-def _escape_formula(s: str) -> str:
-    return s.replace("\\", "\\\\").replace("'", "\\'")
+# ---------- Airtable: Jobs ----------
 
-
-def airtable_search_by_name(name: str, limit: int = 5) -> list:
-    """Find recent leads by first name (case-insensitive). Most recent first."""
-    safe = _escape_formula(name.lower())
-    formula = f"SEARCH(LOWER('{safe}'), LOWER({{Name}}))"
-    res = requests.get(
-        airtable_url(),
-        headers=airtable_headers(),
-        params={
-            "filterByFormula": formula,
-            "maxRecords": limit,
-            "sort[0][field]": FIELD_DATE_OF_CONVO,
-            "sort[0][direction]": "desc",
-        },
-        timeout=20,
-    )
+def jobs_list_recent(limit: int = 20, formula: str | None = None) -> list:
+    params = {
+        "maxRecords": limit,
+        "sort[0][field]": JOB_QUOTE_DATE,
+        "sort[0][direction]": "desc",
+    }
+    if formula:
+        params["filterByFormula"] = formula
+    res = requests.get(jobs_url(), headers=airtable_headers(), params=params, timeout=20)
     if res.status_code != 200:
-        raise RuntimeError(f"Airtable search error {res.status_code}: {res.text[:500]}")
+        raise RuntimeError(f"Jobs list error {res.status_code}: {res.text[:500]}")
     return res.json().get("records", [])
 
 
-def airtable_fuzzy_search(query: str, limit: int = 10) -> list:
-    """Multi-field fuzzy search. Splits query into whitespace tokens; each token must
-    appear in at least one of Name, Full name, or Property Details (case-insensitive).
-    Example: 'kate quakertown' matches a lead named 'Kate' with address containing 'quakertown'.
+def jobs_for_client(client_id: str, limit: int = 10) -> list:
+    formula = f"FIND('{client_id}', ARRAYJOIN({{Client}}))"
+    return jobs_list_recent(limit=limit, formula=formula)
+
+
+def jobs_get(record_id: str) -> dict:
+    res = requests.get(jobs_url(record_id), headers=airtable_headers(), timeout=20)
+    if res.status_code != 200:
+        raise RuntimeError(f"Job fetch error {res.status_code}: {res.text[:500]}")
+    return res.json()
+
+
+def jobs_update(record_id: str, fields: dict) -> dict:
+    res = requests.patch(
+        jobs_url(record_id),
+        headers=airtable_headers(),
+        json={"fields": _strip_none(fields)},
+        timeout=20,
+    )
+    if res.status_code != 200:
+        raise RuntimeError(f"Job update error {res.status_code}: {res.text[:500]}")
+    return res.json()
+
+
+def create_job(parsed: dict, raw_notes: str, client_id: str, source_channel: str = "Phone call") -> dict:
+    """Create a new Job row linked to `client_id`. Returns the created record."""
+    amount = _extract_amount(parsed.get("message", ""))
+    fields = _strip_none({
+        JOB_CLIENT: [client_id],
+        JOB_SERVICE_TYPE: parsed.get("service_type", "") or None,
+        JOB_PROPERTY_SNAPSHOT: parsed.get("property_details", "") or None,
+        JOB_QUOTE: parsed.get("message", ""),
+        JOB_AMOUNT: amount,
+        JOB_REASONING: parsed.get("reasoning", "") or None,
+        JOB_QUOTE_DATE: _today_iso(),
+        JOB_LEAD_STATUS: "Quoted",
+        JOB_CONCERNS: parsed.get("concerns", "") or None,
+        JOB_CONVO_LOG: raw_notes or None,
+        JOB_SOURCE_CHANNEL: source_channel or None,
+    })
+    res = requests.post(
+        jobs_url(),
+        headers=airtable_headers(),
+        json={"records": [{"fields": fields}]},
+        timeout=20,
+    )
+    if res.status_code not in (200, 201):
+        raise RuntimeError(f"Job create error {res.status_code}: {res.text[:500]}")
+    return res.json()["records"][0]
+
+
+def search_jobs_by_client_name(query: str, limit: int = 5) -> list:
+    """Multi-token fuzzy search across Clients by name/full_name/address/phone.
+    Returns the latest Job for each matching client, enriched with embedded
+    client fields under the synthetic key `_client`.
     """
     tokens = [t for t in query.lower().split() if t]
     if not tokens:
@@ -270,70 +429,67 @@ def airtable_fuzzy_search(query: str, limit: int = 10) -> list:
         token_clauses.append(
             f"OR(SEARCH('{safe}', LOWER({{Name}})), "
             f"SEARCH('{safe}', LOWER({{Full name}})), "
-            f"SEARCH('{safe}', LOWER({{Property Details}})))"
+            f"SEARCH('{safe}', LOWER({{Address}})), "
+            f"SEARCH('{safe}', {{Phone}}))"
         )
     formula = "AND(" + ", ".join(token_clauses) + ")"
-    res = requests.get(
-        airtable_url(),
+    clients = clients_search(formula, limit=limit)
+    out = []
+    for c in clients:
+        jobs = jobs_for_client(c["id"], limit=1)
+        if not jobs:
+            continue  # Skip clients with no job yet — update/book can't act on them
+        job = jobs[0]
+        job["_client"] = c
+        out.append(job)
+    return out
+
+
+# ---------- Airtable: Conversations ----------
+
+def create_conversation(
+    client_id: str,
+    message: str,
+    *,
+    job_id: str | None = None,
+    channel: str = "Website chatbot",
+    direction: str = "Inbound",
+    author: str = "Customer",
+    intent: str = "",
+    timestamp: str | None = None,
+) -> dict:
+    """Log one conversation turn. `client_id` is required; `job_id` optional."""
+    fields = _strip_none({
+        CONVO_CLIENT: [client_id] if client_id else None,
+        CONVO_JOB: [job_id] if job_id else None,
+        CONVO_CHANNEL: channel or None,
+        CONVO_DIRECTION: direction or None,
+        CONVO_AUTHOR: author or None,
+        CONVO_MESSAGE: message or None,
+        CONVO_TIMESTAMP: timestamp or datetime.now(timezone.utc).isoformat(),
+        CONVO_INTENT: intent or None,
+    })
+    res = requests.post(
+        conversations_url(),
         headers=airtable_headers(),
-        params={
-            "filterByFormula": formula,
-            "maxRecords": limit,
-            "sort[0][field]": FIELD_DATE_OF_CONVO,
-            "sort[0][direction]": "desc",
-        },
+        json={"records": [{"fields": fields}]},
         timeout=20,
     )
-    if res.status_code != 200:
-        raise RuntimeError(f"Airtable fuzzy search error {res.status_code}: {res.text[:500]}")
-    return res.json().get("records", [])
-
-
-def airtable_list_recent(limit: int = 10) -> list:
-    """List the N most recent leads regardless of name."""
-    res = requests.get(
-        airtable_url(),
-        headers=airtable_headers(),
-        params={
-            "maxRecords": limit,
-            "sort[0][field]": FIELD_DATE_OF_CONVO,
-            "sort[0][direction]": "desc",
-        },
-        timeout=20,
-    )
-    if res.status_code != 200:
-        raise RuntimeError(f"Airtable list error {res.status_code}: {res.text[:500]}")
-    return res.json().get("records", [])
-
-
-def airtable_update(record_id: str, fields: dict) -> dict:
-    """Update specific fields on a record. `fields` keys are field IDs."""
-    res = requests.patch(
-        airtable_url(record_id),
-        headers=airtable_headers(),
-        json={"fields": fields},
-        timeout=20,
-    )
-    if res.status_code != 200:
-        raise RuntimeError(f"Airtable update error {res.status_code}: {res.text[:500]}")
-    return res.json()
+    if res.status_code not in (200, 201):
+        raise RuntimeError(f"Conversation create error {res.status_code}: {res.text[:500]}")
+    return res.json()["records"][0]
 
 
 # ---------- Google Calendar one-tap URL ----------
 
 def gcal_one_tap_url(
     title: str,
-    start_iso: str,  # "2026-05-23T08:30:00"
+    start_iso: str,
     end_iso: str,
     description: str = "",
     location: str = "",
 ) -> str:
-    """
-    Build a Google Calendar 'add event' URL. Tap on phone -> save -> done.
-    No OAuth required.
-
-    Format expected by Google: YYYYMMDDTHHMMSS (no dashes/colons), local time.
-    """
+    """Build a Google Calendar 'add event' URL. No OAuth required."""
     def to_gcal(s: str) -> str:
         s = s.split(".")[0].rstrip("Z")
         s = re.sub(r"[+-]\d{2}:?\d{2}$", "", s)

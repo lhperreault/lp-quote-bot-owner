@@ -1,0 +1,57 @@
+{
+  "base_id": "appqep8mBMzhS6lFt",
+  "clients": {
+    "table_id": "tblWp6sapdFp6M8mt",
+    "fields": {
+      "Name": "fld0Vf32bygclOPN4",
+      "Full name": "fldhQwijwfb8k1rQf",
+      "Phone": "fldORRqmjDKYoCo1h",
+      "Email": "fldgioEKyBmrfc1jL",
+      "Address": "fldvvPyRQSllCWOB6",
+      "Stories": "fld2obLMYoHT7mpPB",
+      "Sqft": "fldZVNZy9nPiX9MWo",
+      "Material": "fldQPZarHvt2BbK5D",
+      "Default condition": "fldpcvNM1TmT7Yx85",
+      "Source": "fldHyrB16mGR5MHaD",
+      "Tags": "fldfowCjwqq5RlMHY",
+      "First contacted": "fldOFkS06SzquRFCS",
+      "Notes": "fldNmP4W9cbzOdv4v"
+    }
+  },
+  "jobs": {
+    "table_id": "tblcyYnWmhIyLjANX",
+    "fields": {
+      "Job ID": "fldiu0Ziga90WMzWy",
+      "Client": "fld7vFKjZNFUtkCTs",
+      "Service type": "fldkaiAQzkbCqRwlt",
+      "Property snapshot": "fldrOSSPgUe1RmCn0",
+      "Quote": "fldWw6osCMhribmXK",
+      "Quote amount": "fld70o03Y4wNQvWld",
+      "Reasoning": "fld1g1NtinRCPIqnB",
+      "Quote date": "fld6OiN5gU5cRJkSo",
+      "Booking date": "fldoo6nuea7Epclfz",
+      "Completion date": "fldHYjEvr9oGE6wlh",
+      "Lead status": "fldOCS468AAlxtFqQ",
+      "Final paid": "fldEaRteK7YsghAWj",
+      "Discount given": "fldlC0j9CXs0GiUX1",
+      "Concerns": "fldKK0WXnAlZKwINY",
+      "Conversation log": "fld7pvtlD4Op3nuif",
+      "Source channel": "fld8mxhfBCDqoPtJg"
+    }
+  },
+  "conversations": {
+    "table_id": "tblY9f1ZTYZLvMT1n",
+    "fields": {
+      "Turn": "fldNGrduf8wNwtxty",
+      "Client": "fldZewasWA4bE5GXO",
+      "Job": "fldEWuGVXIMPCJxah",
+      "Channel": "fldf435AhgzGCNg9w",
+      "Direction": "fldPMN9NCHUAcQYYH",
+      "Author": "fldKT673HIz9JjJlP",
+      "Message": "fld12l4djM9sEkyja",
+      "Timestamp": "fldth3MChCsfiF1ur",
+      "Intent": "fld4hY69gGdmeogHj",
+      "Summary": "fld25FTNQu7zCt4PN"
+    }
+  }
+}
