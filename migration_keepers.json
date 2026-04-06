@@ -1,0 +1,311 @@
+[
+  {
+    "id": "rec59x2azb8wWmd24",
+    "createdTime": "2026-04-05T16:42:07.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Rob",
+      "fldnqd4dcULAQb365": "Walkway Cleaning: $32-$82",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "267-555-6789",
+      "fldRiJUuyCguVNcQt": "2026-04-05T16:42:07.085Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "Walkway Cleaning",
+      "fldefxAGh0MduG7iK": "User: Hello\nAssistant: Hey there! Welcome to LP Pressure Washing! \ud83d\udc4b What's your first name?\nUser: Rob\nAssistant: Nice to meet you, Rob! \ud83d\ude0a What do you want cleaned today?\nUser: Just need a small walkway cleaned\nAssistant: Great! Could you provide me with a bit more information about the walkway?\n\n1. What's the approximate square footage?\n2. What's the primary material? (Concrete, Pavers, Brick, etc.)\n3. Are there weeds between any cracks we will need to handle?\n4. How long has it been since the last cleaning, and how dirty would you say it is?\nUser: Maybe 80 sq ft, just a small walkway\nAssistant: Alright!\n\n1. What's the primary material? (Concrete, Pavers, Brick, etc.)\n2. Are there weeds between any cracks we will need to handle?\n3. How long has it been since the last cleaning, and how dirty would you say it is?\nUser: Pavers\nAssistant: Thanks for the details!\n\n1. Are there weeds between any cracks that we need to handle?\n2. How long has it been since the last cleaning, and how dirty would you say it is?\nUser: No weeds, about a year since it was done last\nAssistant: Thanks, Rob! Based on this information, I can provide a quote for the walkway cleaning. Could you please share your phone number, and I'll get you this estimate next! \ud83d\ude80\nUser: 267-555-6789"
+    }
+  },
+  {
+    "id": "rec3S0zWSVcKylyo1",
+    "createdTime": "2026-04-05T16:40:08.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Jenny",
+      "fldnqd4dcULAQb365": "$262-$312",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "267-555-3456",
+      "fldRiJUuyCguVNcQt": "2026-04-05T16:40:07.989Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "Patio Cleaning",
+      "fldefxAGh0MduG7iK": "Jenny wants her patio cleaned. It is about 600 sq ft made of concrete. There are weeds in some cracks, and it has never been cleaned before."
+    }
+  },
+  {
+    "id": "rec3eD6lTmhvfx30Y",
+    "createdTime": "2026-04-05T15:42:03.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Dave",
+      "fldtk4GH3P2cGsD4z": "2 stories, 2200 sq ft, Vinyl siding, last cleaned 2 years ago, fairly clean.",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "267-555-7890",
+      "fldRiJUuyCguVNcQt": "2026-04-05T15:42:03.336Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "House Washing and Gutters"
+    }
+  },
+  {
+    "id": "rec48zAG6rYy2phsD",
+    "createdTime": "2026-04-05T16:49:08.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Luke",
+      "fldnqd4dcULAQb365": "$50-$100 for cleaning both sides of a 50-ft wood fence.",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "234 2834059",
+      "fldRiJUuyCguVNcQt": "2026-04-05T16:49:07.644Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "Fence Cleaning",
+      "fldefxAGh0MduG7iK": "User: My name is Luke. Bot: Nice to meet you, Luke! \ud83d\ude0a\n\nLet's begin and you can schedule a service date at the end if desired.\n\nWhat do you want cleaned? User: fencing Bot: Great! We can certainly help with cleaning your fence. Could you please let me know: 1. What is the primary material of the fence? (Vinyl, Wood, Metal, etc.) 2. Do you want just one side cleaned, or both sides? 3. How long is the fence in linear feet? 4. How dirty would you say it is, and when was the last time it was cleaned? This will help me provide an accurate estimate for you! User: Less than 1 year Bot: Thanks for letting me know. Could you also share the primary material of the fence and whether you want one or both sides cleaned? This will help me finalize the quote for you. User: Wood Bot: Perfect! And would you like just one side of the wood fence cleaned, or both sides? Additionally, could you let me know the length of the fence in linear feet? User: Both Bot: Got it! Cleaning both sides of a wood fence will involve pricing for both sides. Could you please provide the total length of the fence in linear feet? This will help me calculate the estimate for you. User: 50 Bot: Thanks for the details! I'll calculate your estimate. Just to finalize things, what's your phone number so I can get this estimate to you next? \ud83d\ude80 User: 234 2834059"
+    }
+  },
+  {
+    "id": "rec4q5lhFEgjPv9Jx",
+    "createdTime": "2026-04-05T15:42:52.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Karen",
+      "fldtk4GH3P2cGsD4z": "Vinyl fence, 150 linear feet, both sides to be cleaned",
+      "fldnqd4dcULAQb365": "$180-$240",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "267-555-2345",
+      "fldRiJUuyCguVNcQt": "2026-04-05T15:42:51.718Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "Fencing",
+      "fldefxAGh0MduG7iK": "{\"user\":\"Karen\",\"assistant\":\"Great choice, Karen! \ud83c\udfd7\ufe0f \\n\\nCould you please let me know the approximate length of the fencing in feet? Also, what material is the fence (Vinyl, Wood, Metal)?\",\"user\":\"Vinyl fence, about 150 linear feet\",\"assistant\":\"Thanks for that information! \\n\\nSince it's a vinyl fence, the estimated price will be $90-$120. This is because our team does a final human review to give you an exact price. We use a safe, soft-wash chemical process that protects your home and landscaping. \\n\\nWhat is your phone number? and I'll get you this estimate next!\ud83d\ude80\",\"user\":\"Both sides please\",\"assistant\":\"Got it! For both sides of your vinyl fence at 150 linear feet, the estimated price will be $180-$240. This is because our team does a final human review to give you an exact price. We use a safe, soft-wash chemical process that protects your home and landscaping. \\n\\nWhat is your phone number? and I'll get you this estimate next!\ud83d\ude80\",\"user\":\"It's been about 2 years, not too bad\",\"assistant\":\"Thanks for the info, Karen! Since it's not too dirty and has been about 2 years, the estimated price remains $180-$240 for your vinyl fence. \\n\\nWhat is your phone number? and I'll get you this estimate next!\ud83d\ude80\"}}"
+    }
+  },
+  {
+    "id": "rec5vxgjMLzJ9nmUe",
+    "createdTime": "2026-04-05T15:44:36.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Margaret",
+      "fldtk4GH3P2cGsD4z": "1 story, vinyl house, about 1800 sq ft, dirty for 4 years",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "267-555-8901",
+      "fldRiJUuyCguVNcQt": "2026-04-05T15:44:36.111Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "House Washing",
+      "fldefxAGh0MduG7iK": "{\"user\":\"Margaret\",\"assistant\":\"Great choice! \ud83c\udfe0 I can give you an estimate two ways \u2014 would you like to share your address so I can pull up your property details, or would you prefer to tell me how many stories and the square footage?\"}"
+    }
+  },
+  {
+    "id": "recPFfn7pmBXORD1R",
+    "createdTime": "2026-04-01T20:16:32.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Like",
+      "fldtk4GH3P2cGsD4z": "2-story, 3400 sq ft, Vinyl home, one side moderately dirty and others normal",
+      "fldnqd4dcULAQb365": "Your estimated price is $450-$500. This is because our team does a final human review to give you an exact price. We use a safe, soft-wash chemical process that protects your home and landscaping. We use professional-grade soaps safe for all plants and pets.",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "2679128285",
+      "fldRiJUuyCguVNcQt": "2026-04-01T20:16:31.860Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "House Washing",
+      "fldefxAGh0MduG7iK": "{\"user\": \"Like\", \"assistant\": \"Great choice, Like! \ud83c\udfe0 To give you an accurate estimate, how many stories is your home? Is there a slope on any side?\"}"
+    }
+  },
+  {
+    "id": "rec9tXJBk142VmgXP",
+    "createdTime": "2026-04-05T15:35:32.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Sarah",
+      "fldtk4GH3P2cGsD4z": "3-story row home, approximately 2800 sq ft, brick with some stucco on the back, pretty dirty",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "267-555-5678",
+      "fldRiJUuyCguVNcQt": "2026-04-05T15:35:32.333Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "House Washing"
+    }
+  },
+  {
+    "id": "recBQ05n2vytMQbEO",
+    "createdTime": "2026-04-05T15:35:17.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Mike",
+      "fldtk4GH3P2cGsD4z": "Vinyl house, moderately dirty, about 2 stories, last cleaned about 2 years ago.",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "267-555-1234",
+      "fldRiJUuyCguVNcQt": "2026-04-05T15:35:16.575Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "House Washing",
+      "fldefxAGh0MduG7iK": "{\"user\":\"Mike\",\"assistant\":\"Nice to meet you, Mike! \ud83d\ude0a Let's begin and you can schedule a service date at the end if desired. What do you want cleaned?\"},{\"user\":\"house exterior\",\"assistant\":\"Got it! I can give you an estimate two ways \u2014 would you like to share your address so I can pull up your property details, or would you prefer to tell me how many stories and the square footage?\"},{\"user\":\"123 Main St, Doylestown, PA 18901\",\"assistant\":\"It looks like I couldn't retrieve the property details for your address. No worries! Could you let me know how many stories your house has and the approximate square footage?\"},{\"user\":\"Vinyl\",\"assistant\":\"Thanks for sharing that the exterior is vinyl! Could you also let me know how many stories your house has and the approximate square footage?\"},{\"user\":\"About 2 years ago, moderately dirty\",\"assistant\":\"Thanks for that info! Just to confirm, how many stories does your house have?\"},{\"user\":\"267-555-1234\"}"
+    }
+  },
+  {
+    "id": "recBw7aRExet7UYEt",
+    "createdTime": "2026-04-05T15:44:01.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Phil",
+      "fldtk4GH3P2cGsD4z": "Deck size is approximately 550 sq ft, made of composite Trek material with PVC railings (40 feet) and 6 steps. Good shape but dirty, last cleaned 2 years ago.",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "267-555-4567",
+      "fldRiJUuyCguVNcQt": "2026-04-05T15:44:00.583Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "Deck Cleaning",
+      "fldefxAGh0MduG7iK": "{\"user\":\"Phil\",\"assistant\":\"Nice to meet you, Phil! \ud83d\ude0a Let's begin, and you can schedule a service date at the end if desired. \n\nWhat do you want cleaned?\",\"user\":\"deck\",\"assistant\":\"Great choice, Phil! \ud83e\udeb5 \n\nWhat is the approximate square footage of your deck?\",\"user\":\"About 550 sq ft, composite Trek material\",\"assistant\":\"Thanks for that information! Do you have any railings on the deck? If so, what type and how long in feet?\",\"user\":\"PVC railings, about 40 feet. 6 steps.\",\"assistant\":\"Got it! How long has it been since the last cleaning, and how dirty would you say it is?\",\"user\":\"It's in good shape, just dirty. 2 years since last clean\",\"assistant\":\"Thank you for the details, Phil! Lastly, what is your phone number? I'll get you this estimate next! \ud83d\ude80\",\"user\":\"267-555-4567\"}"
+    }
+  },
+  {
+    "id": "recH1pWxiUwM607MS",
+    "createdTime": "2026-04-06T14:53:25.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "John",
+      "fldtk4GH3P2cGsD4z": "2-story vinyl home, approximately 1181 sq ft",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "9082951843",
+      "fldRiJUuyCguVNcQt": "2026-04-06T14:53:25.122Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "House Washing",
+      "fldefxAGh0MduG7iK": "{\"user\":\"John schaninger\",\"assistant\":\"Nice to meet you, John! \ud83d\ude0a Let's begin, and you can schedule a service date at the end if desired. What do you want cleaned?\",\"user\":\"house exterior\",\"assistant\":\"Great choice, John! I can give you an estimate two ways \u2014 would you like to share your address so I can pull up your property details, or would you prefer to tell me how many stories and the square footage?\",\"user\":\"1749 narrows hill rd. Upper black eddy, pa\",\"assistant\":\"I can see your home at 1749 Narrows Hill Rd is about 1181 sq ft. How many stories is it?\",\"user\":\"2 Stories\",\"assistant\":\"Thanks for that information! What is the primary material of your home? (Vinyl, Wood, Brick, etc.)\",\"user\":\"Vinyl\",\"assistant\":\"Do you have any dormers, a porch you want cleaned, or a chimney that needs to be cleaned?\",\"user\":\"The outside and the chimney are part of the house.\",\"assistant\":\"Got it! How long has it been since the last cleaning, and how dirty would you say it is?\",\"user\":\"1-2 years\",\"assistant\":\"Thanks for the details, John! What is your phone number? and I'll get you this estimate next!\ud83d\ude80\",\"user\":\"9082951843\"}"
+    }
+  },
+  {
+    "id": "recHNv8ooMC3CYOCg",
+    "createdTime": "2026-04-05T17:18:40.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Luke",
+      "fldtk4GH3P2cGsD4z": "Vinyl fence, 90 feet long, good condition, cleaned within the last year.",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "2345679493",
+      "fldRiJUuyCguVNcQt": "2026-04-05T17:18:40.126Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "Fencing",
+      "fldefxAGh0MduG7iK": "[{\"user\":\"Luke\",\"assistant\":\"Nice to meet you, Luke! \ud83d\ude0a Let's begin, and you can schedule a service date at the end if desired. What do you want cleaned?\"},{\"user\":\"fencing\",\"assistant\":\"Great choice, Luke! What is the approximate length of the fencing you'd like cleaned?\"},{\"user\":\"90\",\"assistant\":\"Thanks! What is the primary material of the fence? (Vinyl, Wood, etc.) And if it\u2019s wood, is it solid with no gaps or more of a post-and-beam structure?\"},{\"user\":\"Vinyl\",\"assistant\":\"Got it! How long has it been since the last cleaning, and how dirty would you say it is?\"},{\"user\":\"Less than 1 year\",\"assistant\":\"Okay! Is the fence in good shape, or are there any boards/paint that are getting old or damaged?\"},{\"user\":\"Good\",\"assistant\":\"Thanks for the information, Luke! What is your phone number? and I'll get you this estimate next!\ud83d\ude80\"},{\"user\":\"2345679493\"}]"
+    }
+  },
+  {
+    "id": "recP64QzpXrNEeg5W",
+    "createdTime": "2026-04-05T15:43:40.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Lisa",
+      "fldtk4GH3P2cGsD4z": "2-story, about 2400 sq ft, vinyl siding",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "267-555-0123",
+      "fldRiJUuyCguVNcQt": "2026-04-05T15:43:40.185Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "House Washing",
+      "fldefxAGh0MduG7iK": "{\"user\":\"Lisa\",\"assistant\":\"Nice to meet you, Lisa! \ud83d\ude0a Let's begin, and you can schedule a service date at the end if desired. What do you want cleaned?\"},{\"user\":\"house exterior\",\"assistant\":\"Great choice! I can give you an estimate in two ways \u2014 would you like to share your address so I can pull up your property details, or would you prefer to tell me how many stories and the square footage?\"},{\"user\":\"I only need the front and back done. 2 story, about 2400 sq ft total\",\"assistant\":\"Thanks for that information! Just to confirm, is the primary material of your home vinyl, wood, brick, or something else?\"},{\"user\":\"Vinyl\",\"assistant\":\"Do you have any dormers, a porch you want cleaned, or a chimney that needs cleaning?\"},{\"user\":\"No extras needed\",\"assistant\":\"How long has it been since the last cleaning? And how dirty would you say it is?\"},{\"user\":\"About 3 years, the back is really dirty but front is okay\",\"assistant\":\"Thank you for that info! Just to finalize before I give you a quote, what is your phone number? And I'll get you this estimate next!\ud83d\ude80\"},{\"user\":\"267-555-0123\"}]}"
+    }
+  },
+  {
+    "id": "recRzPPLsJcHfoeAv",
+    "createdTime": "2026-04-05T17:24:55.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Luke",
+      "fldtk4GH3P2cGsD4z": "2-story house, 2300 sq ft, stucco, with 2 dormers and a porch, cleaned less than a year ago.",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "235 284 2939",
+      "fldRiJUuyCguVNcQt": "2026-04-05T17:24:54.351Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "House Washing",
+      "fldefxAGh0MduG7iK": "[{\"user\":\"Luke\"},{\"assistant\":\"Nice to meet you, Luke! \ud83d\ude0a Let's begin and you can schedule a service date at the end if desired. What do you want cleaned?\"},{\"user\":\"house exterior\"},{\"assistant\":\"Great choice, Luke! I can give you an estimate two ways \u2014 would you like to share your address so I can pull up your property details, or would you prefer to tell me how many stories and the square footage?\"},{\"user\":\"Sure it\u2019s 2\"},{\"assistant\":\"Thanks for that! How many square feet is your home?\"},{\"user\":\"230\"},{\"assistant\":\"It seems like there might have been a mix-up on the size\u2014230 square feet is quite small for a house. Could you please clarify the square footage? A typical 2-story home usually starts at around 1,000 square feet.\"},{\"user\":\"Sorry I mean 2300\"},{\"assistant\":\"No problem at all! So, a 2-story house that is 2300 square feet. What is the primary material of your house? (For example, Vinyl, Wood, Brick, etc.)\"},{\"user\":\"Stucco\"},{\"assistant\":\"Do you have any dormers, a porch you want cleaned, or a chimney that needs to be cleaned?\"},{\"user\":\"2 dormers and porch yes\"},{\"assistant\":\"How long has it been since the last cleaning, and how dirty would you say it is?\"},{\"user\":\"Less than 1 year\"},{\"assistant\":\"Perfect! Since it's been less than a year, I would classify the cleaning as \"clean.\" Before I provide the estimated price, may I please have your phone number? I'll get you this estimate next! \ud83d\ude80\"},{\"user\":\"235 284 2939\"}]"
+    }
+  },
+  {
+    "id": "recT7jxpDAhwuGVqz",
+    "createdTime": "2026-04-01T18:57:07.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Luke",
+      "fldtk4GH3P2cGsD4z": "Approx. 600 sq ft patio, brick/stone material, last cleaned less than 1 year ago.",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "267 912 8285",
+      "fldRiJUuyCguVNcQt": "2026-04-01T18:57:06.795Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "Patio Cleaning"
+    }
+  },
+  {
+    "id": "recTGULt1ZeeTj978",
+    "createdTime": "2026-04-04T18:00:32.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "User",
+      "fldtk4GH3P2cGsD4z": "2-story vinyl house wash, not cleaned in 2 years.",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "2679804087",
+      "fldRiJUuyCguVNcQt": "2026-04-04T18:00:32.059Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "House Washing",
+      "fldefxAGh0MduG7iK": "{\"user\":\"2700 vinyl house wash. 2 years not cleaned. Just the house\",\"assistant\":\"Nice to meet you! \ud83d\ude0a  Let's begin and you can schedule a service date at the end if desired.  To give you an accurate estimate, how many stories is the home? Is there a slope on any side?\",\"user\":\"2 Stories\",\"assistant\":\"Great!  What is the primary material? (Vinyl, Wood, Brick, etc.)\",\"user\":\"Vinyl\",\"assistant\":\"How long has it been since the last cleaning? You mentioned 2 years \u2014 how dirty would you say it is? (Clean, Dirty, Really Dirty)\",\"user\":\"1-2 years.\",\"assistant\":\"Thanks for that!  What is your phone number? and I'll get you this estimate next!\ud83d\ude80\",\"user\":\"2679804087\"}"
+    }
+  },
+  {
+    "id": "recUH5BvlYkV3BqXo",
+    "createdTime": "2026-04-05T15:22:24.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Luke",
+      "fldtk4GH3P2cGsD4z": "A single-family home about 2367 sq ft with vinyl siding, two first-story dormers, and a porch. Last cleaned in less than a year.",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "23422343",
+      "fldRiJUuyCguVNcQt": "2026-04-05T15:22:23.817Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "House Washing",
+      "fldefxAGh0MduG7iK": "[\"Luke: house exterior\",\"LP Pressure Washing: Got it! I can give you an estimate either way \u2014 would you like to share your address so I can pull up your property details, or would you prefer to tell me how many stories and the square footage? Also, is there a slope on any side?\",\"Luke: address\",\"LP Pressure Washing: Please provide the full address (street, city, state, zip) so I can look it up!\",\"Luke: 1134 pheasant run quakertown pa 18951\",\"LP Pressure Washing: I can see your home is about 2367 sq ft and it\u2019s a single-family residence \u2014 does that sound right? What is the primary material? (Vinyl, Wood, Brick, etc.)\",\"Luke: Vinyl\",\"LP Pressure Washing: Do you have any dormers, a porch you want cleaned, or a chimney that needs cleaning?\",\"Luke: two dormers and porch\",\"LP Pressure Washing: How long has it been since the last cleaning, and how dirty would you say it is?\",\"Luke: Less than 1 year\",\"LP Pressure Washing: Great! Just to confirm, you mentioned you have two dormers. Are they both first-story dormers? Once I have that, I can get you an estimate!\",\"Luke: yes both\",\"LP Pressure Washing: Thanks for confirming, Luke! \ud83d\ude0a What is your phone number, and I'll get you this estimate next!\ud83d\ude80\",\"Luke: 23422343\"]"
+    }
+  },
+  {
+    "id": "recWsQch1yqhb9M7u",
+    "createdTime": "2026-04-06T10:33:06.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "John",
+      "fldtk4GH3P2cGsD4z": "16 Brinker Drive, Doylestown PA 18901. 2-story, 4 sides, vinyl siding, no porch. Sqft not given \u2014 assumed 2000-2300 range for pricing.",
+      "fldnqd4dcULAQb365": "Hi John,\nIt's Luke Perreault from LP Pressure Washing. Thanks for reaching out about the house wash.\n\nHere is the estimate!\nTo wash your house including all sides, up to peaks, outside of gutters, soffits, windows, doors and garage door we can do for $360.\n\nWe use the soft wash system\u2014that's low pressure cleaning\u2014which is much safer on your siding and landscaping than traditional pressure washing. We pair it with a safe bleach-based soap that kills mold, mildew, and algae without damaging your plants or home. We make sure to water down any plants before and after to protect them.\n\nThe windows get washed during the process but they don't dry perfectly spotless as if professionally cleaned. But they look great.\n\nHow would Saturday the 23rd work? If a weekday is better I can also do Friday the 22nd.\n\nLet me know if you have any questions,",
+      "fldnscbWozuyJczK8": "John Willingham",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "267-980-4087",
+      "fldRiJUuyCguVNcQt": "2026-04-06T12:00:00.000Z",
+      "fldZkYJFz5fXIAD86": "Quoted",
+      "fldI1JvqPHOMVPbVt": "House wash (full)",
+      "fldefxAGh0MduG7iK": "John Willingham, 2679804087, 16 brinker drive doylestown pa 18901, house 2 stories, 4 sides, vinyl, no porch"
+    }
+  },
+  {
+    "id": "recWzGnc03Wpx0QtU",
+    "createdTime": "2026-04-01T22:04:08.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Jackie",
+      "fldtk4GH3P2cGsD4z": "2 story stucco home, approximately 2300 sq ft, last cleaned 1-2 years ago and in moderate condition.",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "234 293 1294",
+      "fldRiJUuyCguVNcQt": "2026-04-01T22:04:08.217Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "House Washing",
+      "fldefxAGh0MduG7iK": "{\"user\":\"Jackie\",\"assistant\":\"Hey \ud83d\udc4b! Welcome to LP Pressure Washing! I'm here to get you a fast, accurate quote and answer any questions - usually takes less than 2 minutes! Before we dive in... What's your first name?\",\"user\":\"Jackie\",\"assistant\":\"Nice to meet you, Jackie! \ud83d\ude0a Let's begin, and you can schedule a service date at the end if desired. What do you want cleaned?\",\"user\":\"house exterior\",\"assistant\":\"Great choice, Jackie! Let's get you an estimate for the house wash. To give you an accurate estimate, how many stories is the home? Is there a slope on any side?\",\"user\":\"2 Stories\",\"assistant\":\"Thanks for that information! What is the approximate square footage? (Zillow numbers work great!)\",\"user\":\"2300\",\"assistant\":\"Perfect! What is the primary material? (Vinyl, Wood, Brick, etc.)\",\"user\":\"Stucco\",\"assistant\":\"Got it, stucco! How long has it been since the last cleaning? And how dirty would you say it is?\",\"user\":\"1-2 years\",\"assistant\":\"Thank you, Jackie! Just one more question before I give you the quote: What is your phone number? And I'll get you this estimate next!\ud83d\ude80\",\"user\":\"234 293 1294\"}"
+    }
+  },
+  {
+    "id": "recibQWkDd9IpEq0p",
+    "createdTime": "2026-04-04T22:17:16.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "User",
+      "fldtk4GH3P2cGsD4z": "2600 sq ft, 2 story home made of vinyl that was last cleaned less than 1 year ago.",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "2359394959",
+      "fldRiJUuyCguVNcQt": "2026-04-04T22:17:15.293Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "House Washing",
+      "fldefxAGh0MduG7iK": "[{\"role\":\"user\",\"content\":\"2600 house wash, 2 story, last cleaned 2 years ago\"},{\"role\":\"assistant\",\"content\":\"Nice to meet you! \ud83d\ude0a  Let's begin and you can schedule a service date at the end if desired.  What is the primary material of your home? (Vinyl, Wood, Brick, etc.)\"},{\"role\":\"user\",\"content\":\"Vinyl\"},{\"role\":\"assistant\",\"content\":\"Great choice!  How dirty would you say your home is? (Just a little dirt, really dirty, etc.)\"},{\"role\":\"user\",\"content\":\"Less than 1 year\"},{\"role\":\"assistant\",\"content\":\"Thank you for that info!  Just to confirm before I give you a quote, could I have your phone number? \ud83d\ude80\"},{\"role\":\"user\",\"content\":\"2359394959\"}]"
+    }
+  },
+  {
+    "id": "recmpZFRfnjVsYKt0",
+    "createdTime": "2026-04-01T18:29:03.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Like",
+      "fldtk4GH3P2cGsD4z": "2-story home, approximately 2300 sq/ft, vinyl material, last cleaned 3 years ago.",
+      "fldnqd4dcULAQb365": "$340",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "267-912-8285",
+      "fldRiJUuyCguVNcQt": "2026-04-01T18:29:02.526Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "House Washing"
+    }
+  },
+  {
+    "id": "recun4EkBb1iZ7pQG",
+    "createdTime": "2026-04-05T15:35:51.000Z",
+    "cellValuesByFieldId": {
+      "fldtnhr8vIlhmBdff": "Tom",
+      "fldtk4GH3P2cGsD4z": "400 sq ft wood deck with wood railings about 30 feet long and 12 steps, last cleaned 3 years ago, in pretty dirty condition, boards are getting old.",
+      "fldC1TG1gwSJzeu8p": "The user asked about their chimney and I don't have the info about that",
+      "fldXE9o03cUeJhZzC": "267-555-9012",
+      "fldRiJUuyCguVNcQt": "2026-04-05T15:35:50.975Z",
+      "fldZkYJFz5fXIAD86": "Incomplete",
+      "fldI1JvqPHOMVPbVt": "Deck Cleaning",
+      "fldefxAGh0MduG7iK": "{\"user\":\"Tom\",\"assistant\":\"Nice to meet you, Tom! \ud83d\ude0a Let's begin, and you can schedule a service date at the end if desired. What do you want cleaned?\",\"user\":\"deck, porch\",\"assistant\":\"Great choice, Tom! For the deck and porch, I'll need a bit more information to provide an accurate quote. What is the approximate square footage of the deck?\",\"user\":\"About 400 sq ft\",\"assistant\":\"Thanks! What is the primary material of your deck? (Vinyl, Wood, Treks, PVC, etc.)\",\"user\":\"Wood\",\"assistant\":\"Got it! Do you have railings on the deck? If so, what type and how long are they in feet?\",\"user\":\"Yes, wood railings about 30 feet long\",\"assistant\":\"Perfect! Are there any steps on the deck? If so, how many approximately?\",\"user\":\"Yeah about 12 steps\",\"assistant\":\"Thanks for that info! How long has it been since the last cleaning, and how dirty would you say it is?\",\"user\":\"3 years, it's pretty dirty and the boards are getting old.\",\"assistant\":\"Thanks for the details, Tom! Just to confirm one last thing, can I have your phone number? And then I'll get you this estimate next! \ud83d\ude80\",\"user\":\"267-555-9012\"}"
+    }
+  }
+]
