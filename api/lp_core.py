@@ -268,6 +268,58 @@ def _today_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+_MONTHS = {
+    "jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3,
+    "apr": 4, "april": 4, "may": 5, "jun": 6, "june": 6, "jul": 7, "july": 7,
+    "aug": 8, "august": 8, "sep": 9, "sept": 9, "september": 9, "oct": 10,
+    "october": 10, "nov": 11, "november": 11, "dec": 12, "december": 12,
+}
+
+def _extract_date_from_text(text: str) -> str | None:
+    """Best-effort: pull a YYYY-MM-DD out of free text. Handles 'May 28',
+    'May 28th', '5/28', '2026-05-28'. Assumes current/next year for month-day."""
+    if not text:
+        return None
+    # ISO already
+    m = re.search(r"\b(20\d{2})-(\d{1,2})-(\d{1,2})\b", text)
+    if m:
+        y, mo, d = m.groups()
+        return f"{int(y):04d}-{int(mo):02d}-{int(d):02d}"
+    # Month name + day
+    m = re.search(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b", text, re.I)
+    if m:
+        mo = _MONTHS[m.group(1).lower()]
+        d = int(m.group(2))
+        today = datetime.now(timezone.utc)
+        year = today.year
+        # If date already passed this year, roll to next year
+        try:
+            cand = datetime(year, mo, d)
+            if cand.date() < today.date():
+                year += 1
+        except ValueError:
+            return None
+        return f"{year:04d}-{mo:02d}-{d:02d}"
+    # Numeric M/D
+    m = re.search(r"\b(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?\b", text)
+    if m:
+        mo, d, y = int(m.group(1)), int(m.group(2)), m.group(3)
+        if y:
+            year = int(y)
+            if year < 100:
+                year += 2000
+        else:
+            today = datetime.now(timezone.utc)
+            year = today.year
+            try:
+                if datetime(year, mo, d).date() < today.date():
+                    year += 1
+            except ValueError:
+                return None
+        return f"{year:04d}-{mo:02d}-{d:02d}"
+    return None
+
+
 def _extract_amount(text: str) -> float | None:
     """Pull a total-dollar number out of the quote message. Prefers a number
     next to the word 'total', else takes the max dollar amount found."""
@@ -803,7 +855,7 @@ def build_gcal_for_job(parsed: dict, client_fields: dict, job_record: dict, book
     return cal_url, {JOB_BOOKING_DATE: booking_date, JOB_LEAD_STATUS: "Booked"}
 
 
-def run_followup_flow(job_record: dict, edit_text: str) -> dict:
+def run_followup_flow(job_record: dict, edit_text: str, force_intent: str | None = None) -> dict:
     """Full follow-up pipeline: load client + history → call Claude → branch
     on intent (edit / book_confirmed / new_job) → write to Airtable → return
     a JSON-ready response dict. Raises RuntimeError on Claude/Airtable error."""
@@ -859,6 +911,9 @@ def run_followup_flow(job_record: dict, edit_text: str) -> dict:
     intent = (parsed.get("intent") or "edit").strip().lower()
     if intent not in ("edit", "new_job", "book_confirmed"):
         intent = "edit"
+    # Caller (router) can force the intent so Claude can't sneak in new_job
+    if force_intent in ("edit", "new_job", "book_confirmed"):
+        intent = force_intent
 
     # ---- new_job: create a fresh Job linked to the same client ----
     if intent == "new_job":
@@ -897,6 +952,13 @@ def run_followup_flow(job_record: dict, edit_text: str) -> dict:
     }
     calendar_url = None
     booking_date = (parsed.get("booking_date") or "").strip()
+    # If router forced book_confirmed but Claude forgot to parse a date,
+    # try to dig one out of edit_text directly.
+    if not booking_date and intent == "book_confirmed":
+        booking_date = _extract_date_from_text(edit_text) or ""
+    if intent == "book_confirmed":
+        # Always flip status to Booked even if no date was parseable
+        update_fields[JOB_LEAD_STATUS] = "Booked"
     if booking_date:
         cal_url, booking_fields = build_gcal_for_job(parsed, client_fields, job_record, booking_date)
         if cal_url and booking_fields:

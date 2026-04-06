@@ -110,7 +110,7 @@ def _cold_lead(notes: str) -> dict:
     return out
 
 
-def _followup_existing(notes: str, likely: dict | None = None) -> dict:
+def _followup_existing(notes: str, likely: dict | None = None, force_intent: str | None = None) -> dict:
     if likely is None:
         likely = find_likely_client_from_text(notes)
     if not likely:
@@ -124,7 +124,7 @@ def _followup_existing(notes: str, likely: dict | None = None) -> dict:
         out["routed_via"] = "fallback_no_job"
         return out
     latest["_client"] = likely
-    result = run_followup_flow(latest, notes)
+    result = run_followup_flow(latest, notes, force_intent=force_intent)
     cf = likely.get("fields") or {}
     result["matched_client_name"] = cf.get("Full name") or cf.get("Name", "")
     return result
@@ -205,7 +205,8 @@ class handler(BaseHTTPRequestHandler):
             elif intent == "new_booking":
                 payload = _cold_lead(notes)  # cold-lead path handles booking_date inline
             elif intent in ("update_existing", "book_existing"):
-                payload = _followup_existing(notes, likely=likely)
+                forced = "book_confirmed" if intent == "book_existing" else "edit"
+                payload = _followup_existing(notes, likely=likely, force_intent=forced)
             elif intent == "question":
                 payload = _answer_question(notes)
             else:
