@@ -109,65 +109,13 @@
     <div id="recent-list"></div>
   </div>
 
-  <a href="#" class="config-link" id="config-link">Set API key</a>
-</div>
-
-<div id="key-modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100">
-  <div class="card" style="max-width:400px;width:100%;margin:0">
-    <label>LP_SHARED_SECRET</label>
-    <input type="password" id="key-input" placeholder="paste your shared secret" />
-    <button id="key-save" style="margin-top:12px">Save</button>
-  </div>
 </div>
 
 <script>
-const KEY = "lp_api_key_v1";
-let memKey = null;
-const store = {
-  get() {
-    try { return localStorage.getItem(KEY) || sessionStorage.getItem(KEY) || memKey; }
-    catch { return memKey; }
-  },
-  set(v) {
-    memKey = v;
-    try { localStorage.setItem(KEY, v); } catch {}
-  },
-  clear() {
-    memKey = null;
-    try { localStorage.removeItem(KEY); sessionStorage.removeItem(KEY); } catch {}
-  },
-};
-const keyModal = document.getElementById("key-modal");
-const keyInput = document.getElementById("key-input");
-function showKeyModal() {
-  keyInput.value = store.get() || "";
-  keyModal.classList.remove("hidden");
-  setTimeout(() => keyInput.focus(), 50);
-}
-function hideKeyModal() { keyModal.classList.add("hidden"); }
-document.getElementById("key-save").onclick = () => {
-  const v = keyInput.value.trim();
-  if (v) { store.set(v); hideKeyModal(); }
-};
-keyInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") document.getElementById("key-save").click();
-});
-function getKey() {
-  const k = store.get();
-  if (!k) showKeyModal();
-  return k || "";
-}
-document.getElementById("config-link").onclick = (e) => {
-  e.preventDefault();
-  showKeyModal();
-};
-if (!store.get()) showKeyModal();
-
 async function api(path, opts = {}) {
-  const key = getKey();
   const res = await fetch(path, {
     method: opts.method || "POST",
-    headers: { "Content-Type": "application/json", "X-API-Key": key },
+    headers: { "Content-Type": "application/json" },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   const text = await res.text();

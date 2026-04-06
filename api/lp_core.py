@@ -23,7 +23,6 @@ ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 AIRTABLE_PAT = os.environ.get("AIRTABLE_PAT", "")
 AIRTABLE_BASE_ID = os.environ.get("AIRTABLE_BASE_ID", "appqep8mBMzhS6lFt")
 AIRTABLE_TABLE_ID = os.environ.get("AIRTABLE_TABLE_ID", "tblJzQYXCTNhGhtku")
-SHARED_SECRET = os.environ.get("LP_SHARED_SECRET", "")  # gate the endpoints
 
 # Airtable field IDs (LP PW Bot → Main)
 FIELD_NAME = "fldtnhr8vIlhmBdff"
@@ -123,11 +122,8 @@ Return ONLY the JSON. No markdown fences, no preamble, no explanation."""
 # ---------- Auth ----------
 
 def check_auth(headers: dict) -> bool:
-    """Verify the shared secret. Skips check if SHARED_SECRET is empty (dev mode)."""
-    if not SHARED_SECRET:
-        return True
-    provided = headers.get("x-api-key") or headers.get("X-API-Key") or ""
-    return provided == SHARED_SECRET
+    """Auth disabled — endpoints are open."""
+    return True
 
 
 # ---------- Anthropic ----------
