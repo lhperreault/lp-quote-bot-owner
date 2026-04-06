@@ -2,13 +2,14 @@
 POST /api/quote
 Body: {"notes": "raw call notes from Luke"}
 
-Returns: {
-  "message": "the customer-ready text",
-  "record_id": "recXXX",       # Job record id
-  "client_id": "recXXX",       # Client record id
-  "parsed": {...},
-  "airtable_url": "https://airtable.com/..."
-}
+Behavior:
+1. Preflight: try to extract a likely client name from the notes. If it
+   resolves to a single existing client with at least one prior Job, route
+   the request through the follow-up pipeline (so 'John S confirmed for the
+   28th' patches John's existing Job instead of creating a new lead).
+2. Otherwise treat as a cold lead: call Claude, upsert client, create Job.
+
+Returns: {message, record_id, client_id, parsed, airtable_url, intent?}
 """
 
 import os, sys
@@ -22,10 +23,13 @@ from lp_core import (
     call_claude,
     check_auth,
     create_job,
+    find_likely_client_from_text,
     handle_options,
+    jobs_for_client,
     json_response,
     parse_quote_json,
     read_json_body,
+    run_followup_flow,
     upsert_client,
 )
 
@@ -47,6 +51,30 @@ class handler(BaseHTTPRequestHandler):
         if not notes:
             return json_response(self, 400, {"error": "missing 'notes' field"})
 
+        # ---------- Preflight: existing-client follow-up? ----------
+        try:
+            likely = find_likely_client_from_text(notes)
+        except Exception:
+            likely = None
+
+        if likely:
+            try:
+                past = jobs_for_client(likely["id"], limit=4)
+            except Exception:
+                past = []
+            if past:
+                # Treat as a follow-up on the latest job for this client
+                latest = past[0]
+                latest["_client"] = likely
+                try:
+                    result = run_followup_flow(latest, notes)
+                    result["routed_via"] = "followup_preflight"
+                    return json_response(self, 200, result)
+                except Exception as e:
+                    # Fall through to cold-lead path on failure
+                    pass
+
+        # ---------- Cold lead path ----------
         try:
             raw = call_claude(notes)
         except Exception as e:
@@ -61,7 +89,6 @@ class handler(BaseHTTPRequestHandler):
             client_id = upsert_client(parsed)
             record = create_job(parsed, notes, client_id, source_channel="Phone call")
         except Exception as e:
-            # Still return the message so Luke isn't blocked if Airtable hiccups
             return json_response(self, 207, {
                 "message": parsed.get("message", ""),
                 "parsed": parsed,
@@ -71,6 +98,7 @@ class handler(BaseHTTPRequestHandler):
         return json_response(self, 200, {
             "message": parsed.get("message", ""),
             "parsed": parsed,
+            "intent": "new_lead",
             "record_id": record["id"],
             "client_id": client_id,
             "airtable_url": f"https://airtable.com/{AIRTABLE_BASE_ID}/{JOBS_TABLE_ID}/{record['id']}",

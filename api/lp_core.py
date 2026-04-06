@@ -460,34 +460,248 @@ def create_job(parsed: dict, raw_notes: str, client_id: str, source_channel: str
     return res.json()["records"][0]
 
 
-def search_jobs_by_client_name(query: str, limit: int = 5) -> list:
-    """Multi-token fuzzy search across Clients by name/full_name/address/phone.
-    Returns the latest Job for each matching client, enriched with embedded
-    client fields under the synthetic key `_client`.
-    """
+def _client_token_clause(token: str) -> str:
+    """Build an Airtable formula clause for a single search token. Single
+    letters are treated as initials and matched at word boundaries against
+    Name and Full name."""
+    safe = _escape_formula(token)
+    if len(token) == 1:
+        # Initial: match start of any word in Name or Full name. REGEX_MATCH
+        # in Airtable supports \b-style boundaries via (^|\s).
+        return (
+            f"OR("
+            f"REGEX_MATCH(LOWER({{Full name}}), '(^|\\\\s){safe}'), "
+            f"REGEX_MATCH(LOWER({{Name}}), '(^|\\\\s){safe}')"
+            f")"
+        )
+    return (
+        f"OR(SEARCH('{safe}', LOWER({{Name}})), "
+        f"SEARCH('{safe}', LOWER({{Full name}})), "
+        f"SEARCH('{safe}', LOWER({{Address}})), "
+        f"SEARCH('{safe}', {{Phone}}))"
+    )
+
+
+def clients_search_fuzzy(query: str, limit: int = 10) -> list:
+    """Multi-token fuzzy search across Clients. Single-letter tokens are
+    treated as last-name initials. Falls back to first-multi-letter-token
+    only if the AND-of-all-tokens query returns nothing."""
     tokens = [t for t in query.lower().split() if t]
     if not tokens:
         return []
-    token_clauses = []
-    for t in tokens:
-        safe = _escape_formula(t)
-        token_clauses.append(
-            f"OR(SEARCH('{safe}', LOWER({{Name}})), "
-            f"SEARCH('{safe}', LOWER({{Full name}})), "
-            f"SEARCH('{safe}', LOWER({{Address}})), "
-            f"SEARCH('{safe}', {{Phone}}))"
-        )
-    formula = "AND(" + ", ".join(token_clauses) + ")"
-    clients = clients_search(formula, limit=limit)
+    formula = "AND(" + ", ".join(_client_token_clause(t) for t in tokens) + ")"
+    matches = clients_search(formula, limit=limit)
+    if matches:
+        return matches
+    # Fallback: try just the first multi-letter token (usually the first name)
+    first_long = next((t for t in tokens if len(t) > 1), None)
+    if first_long:
+        return clients_search(_client_token_clause(first_long), limit=limit)
+    return []
+
+
+def search_jobs_by_client_name(query: str, limit: int = 5) -> list:
+    """Returns the latest Job for each matching client, enriched with embedded
+    client fields under the synthetic key `_client`. Skips clients that have
+    no jobs yet."""
+    clients = clients_search_fuzzy(query, limit=limit)
     out = []
     for c in clients:
         jobs = jobs_for_client(c["id"], limit=1)
         if not jobs:
-            continue  # Skip clients with no job yet — update/book can't act on them
+            continue
         job = jobs[0]
         job["_client"] = c
         out.append(job)
     return out
+
+
+# ---------- Name extraction (preflight for /api/quote) ----------
+
+_NAME_SKIP = {
+    "i", "we", "she", "he", "they", "hi", "hey", "hello", "talked", "spoke",
+    "called", "just", "ok", "okay", "so", "the", "a", "an", "and", "to", "for",
+    "from", "with", "at", "his", "her", "their", "house", "home", "estimate",
+    "quote", "today", "yesterday", "this", "that", "wants", "needs", "ah",
+    "yo", "yeah", "yes", "no", "got", "got", "has", "had",
+}
+
+
+def _extract_name_tokens(text: str) -> list:
+    """Pull a likely client-name token sequence from the start of free text.
+    Recognizes 'John S' as ['john', 's']. Stops at the first lowercase word
+    after collecting at least one capitalized name token."""
+    if not text:
+        return []
+    snippet = text[:160]
+    words = re.findall(r"[A-Za-z]+", snippet)
+    out: list = []
+    for w in words:
+        if not w[0].isupper():
+            if out:
+                break
+            continue
+        if w.lower() in _NAME_SKIP:
+            if out:
+                break
+            continue
+        out.append(w.lower())
+        if len(out) >= 3:
+            break
+    return out
+
+
+def find_likely_client_from_text(text: str) -> dict | None:
+    """Extract a likely client name from free text and return the unique
+    matching Client record. Returns None if 0 or >1 matches (caller should
+    fall back to the cold-lead path)."""
+    tokens = _extract_name_tokens(text)
+    if not tokens:
+        return None
+    matches = clients_search_fuzzy(" ".join(tokens), limit=5)
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
+# ---------- Shared follow-up pipeline ----------
+
+def _record_field_str(record: dict, field_id: str, name_fallback: str = "") -> str:
+    fields = (record.get("fields") or {})
+    val = fields.get(field_id)
+    if val in (None, "") and name_fallback:
+        val = fields.get(name_fallback)
+    return str(val or "")
+
+
+def build_gcal_for_job(parsed: dict, client_fields: dict, job_record: dict, booking_date: str):
+    """Returns (calendar_url, extra_update_fields). (None, {}) on bad date."""
+    from datetime import timedelta
+    try:
+        dt = datetime.strptime(booking_date, "%Y-%m-%d")
+    except ValueError:
+        return None, {}
+    time_str = (parsed.get("booking_time") or "08:30").strip() or "08:30"
+    try:
+        hh, mm = [int(x) for x in time_str.split(":")[:2]]
+    except Exception:
+        hh, mm = 8, 30
+    start = dt.replace(hour=hh, minute=mm)
+    end = start + timedelta(hours=4)
+    name_str = client_fields.get("Name", "") or "Job"
+    address = client_fields.get("Address", "") or _record_field_str(job_record, JOB_PROPERTY_SNAPSHOT, "Property snapshot")
+    phone = client_fields.get("Phone", "")
+    service = _record_field_str(job_record, JOB_SERVICE_TYPE, "Service type")
+    title = f"{name_str} — {service}".strip(" —")
+    description = f"{address}\n\nPhone: {phone}\n\n---\n\n{parsed.get('message', '')}"
+    cal_url = gcal_one_tap_url(
+        title=title,
+        start_iso=start.isoformat(),
+        end_iso=end.isoformat(),
+        description=description,
+        location=address,
+    )
+    return cal_url, {JOB_BOOKING_DATE: booking_date, JOB_LEAD_STATUS: "Booked"}
+
+
+def run_followup_flow(job_record: dict, edit_text: str) -> dict:
+    """Full follow-up pipeline: load client + history → call Claude → branch
+    on intent (edit / book_confirmed / new_job) → write to Airtable → return
+    a JSON-ready response dict. Raises RuntimeError on Claude/Airtable error."""
+    fields_now = job_record.get("fields") or {}
+    client_ids = fields_now.get(JOB_CLIENT) or fields_now.get("Client") or []
+    client_id = client_ids[0] if client_ids else None
+    client = None
+    client_fields: dict = {}
+    past_jobs: list = []
+    if client_id:
+        try:
+            cmap = fetch_clients_by_ids([client_id])
+            client = cmap.get(client_id)
+            client_fields = (client.get("fields", {}) if client else {}) or {}
+        except Exception:
+            pass
+        try:
+            past_jobs = jobs_for_client(client_id, limit=4)
+        except Exception:
+            past_jobs = []
+
+    existing_quote = _record_field_str(job_record, JOB_QUOTE, "Quote")
+    existing_concerns = _record_field_str(job_record, JOB_CONCERNS, "Concerns")
+    original_notes = _record_field_str(job_record, JOB_CONVO_LOG, "Conversation log")
+    history_block = format_client_history(client, past_jobs, current_job_id=job_record["id"])
+
+    user_msg = (
+        f"FOLLOW-UP on an EXISTING CLIENT.\n\n"
+        f"{history_block}\n\n"
+        f"LATEST JOB (the one Luke is referring to):\n"
+        f"  Service: {_record_field_str(job_record, JOB_SERVICE_TYPE, 'Service type')}\n"
+        f"  Original notes from Luke: {original_notes}\n"
+        f"  Previous customer-facing message:\n{existing_quote}\n"
+        f"  Previous reasoning/history: {existing_concerns}\n\n"
+        f"LUKE'S NEW INPUT: {edit_text}\n\n"
+        f"Decide intent ('edit' | 'new_job' | 'book_confirmed') and return the standard JSON."
+    )
+
+    raw = call_claude(user_msg)
+    parsed = parse_quote_json(raw)
+    intent = (parsed.get("intent") or "edit").strip().lower()
+    if intent not in ("edit", "new_job", "book_confirmed"):
+        intent = "edit"
+
+    # ---- new_job: create a fresh Job linked to the same client ----
+    if intent == "new_job":
+        if not client_id:
+            raise RuntimeError("cannot create repeat job: latest record has no client link")
+        new_record = create_job(parsed, edit_text, client_id, source_channel="Repeat")
+        calendar_url = None
+        booking_date = (parsed.get("booking_date") or "").strip()
+        if booking_date:
+            cal_url, booking_fields = build_gcal_for_job(parsed, client_fields, new_record, booking_date)
+            if cal_url and booking_fields:
+                try:
+                    jobs_update(new_record["id"], booking_fields)
+                except Exception:
+                    pass
+                calendar_url = cal_url
+        return {
+            "message": parsed.get("message", ""),
+            "parsed": parsed,
+            "intent": "new_job",
+            "record_id": new_record["id"],
+            "client_id": client_id,
+            "calendar_url": calendar_url,
+            "airtable_url": f"https://airtable.com/{AIRTABLE_BASE_ID}/{JOBS_TABLE_ID}/{new_record['id']}",
+            "note": "created new job for existing client",
+        }
+
+    # ---- edit / book_confirmed: patch the existing Job ----
+    new_reasoning = parsed.get("reasoning", "")
+    new_concerns = (existing_concerns + "\n\n" if existing_concerns else "") + f"[edit] {edit_text}"
+    if new_reasoning:
+        new_concerns += f"\nReasoning: {new_reasoning}"
+    update_fields = {
+        JOB_QUOTE: parsed.get("message", "") or existing_quote,
+        JOB_CONCERNS: new_concerns,
+    }
+    calendar_url = None
+    booking_date = (parsed.get("booking_date") or "").strip()
+    if booking_date:
+        cal_url, booking_fields = build_gcal_for_job(parsed, client_fields, job_record, booking_date)
+        if cal_url and booking_fields:
+            update_fields.update(booking_fields)
+            calendar_url = cal_url
+
+    jobs_update(job_record["id"], update_fields)
+    return {
+        "message": parsed.get("message", ""),
+        "parsed": parsed,
+        "intent": intent,
+        "record_id": job_record["id"],
+        "client_id": client_id,
+        "calendar_url": calendar_url,
+        "airtable_url": f"https://airtable.com/{AIRTABLE_BASE_ID}/{JOBS_TABLE_ID}/{job_record['id']}",
+    }
 
 
 # ---------- Airtable: Conversations ----------
