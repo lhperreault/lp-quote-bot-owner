@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="LP Quote" />
+<title>LP Quote Writer</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1a2332;
+    --muted: #6b7280;
+    --blue: #2563eb;
+    --blue-dark: #1d4ed8;
+    --green: #059669;
+    --border: #e5e7eb;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    font-size: 16px; line-height: 1.5; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 16px; padding-bottom: 80px; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+  .card { background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  textarea, input[type=text], input[type=date], input[type=password] {
+    width: 100%; padding: 12px; font-size: 16px; border: 1px solid var(--border);
+    border-radius: 8px; background: #fff; font-family: inherit; }
+  textarea { min-height: 120px; resize: vertical; }
+  button { display: inline-block; padding: 12px 18px; font-size: 16px; font-weight: 600;
+    border: none; border-radius: 8px; background: var(--blue); color: #fff; cursor: pointer;
+    width: 100%; margin-top: 8px; }
+  button:disabled { background: #9ca3af; }
+  button.secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+  button.green { background: var(--green); }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .message {
+    background: #f0f7ff; border-left: 3px solid var(--blue); border-radius: 6px;
+    padding: 14px; white-space: pre-wrap; font-size: 15px; margin-bottom: 12px;
+  }
+  .meta { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .meta a { color: var(--blue); text-decoration: none; }
+  .err { color: #b91c1c; background: #fef2f2; border-left: 3px solid #b91c1c;
+    padding: 10px; border-radius: 6px; font-size: 14px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab { flex: 1; padding: 10px; background: #fff; border: 1px solid var(--border);
+    border-radius: 8px; text-align: center; font-weight: 600; cursor: pointer; font-size: 14px; }
+  .tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .hidden { display: none; }
+  .lead { padding: 10px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .lead:last-child { border-bottom: none; }
+  .lead-name { font-weight: 600; }
+  .lead-meta { font-size: 13px; color: var(--muted); }
+  .config-link { font-size: 13px; color: var(--muted); text-align: center;
+    display: block; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>LP Quote Writer</h1>
+  <div class="sub">Paste call notes, get a ready-to-send message.</div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="new">New</div>
+    <div class="tab" data-tab="edit">Edit</div>
+    <div class="tab" data-tab="book">Book</div>
+    <div class="tab" data-tab="recent">Recent</div>
+  </div>
+
+  <!-- NEW QUOTE -->
+  <div class="card" id="tab-new">
+    <label>Notes from the call</label>
+    <textarea id="notes" placeholder="Sarah Test, 215-555-0142, 22 oak ave doylestown, 2 story 2200 sqft vinyl clean, no porch, end of may"></textarea>
+    <button id="btn-quote">Write the message</button>
+    <div id="result-new"></div>
+  </div>
+
+  <!-- EDIT EXISTING -->
+  <div class="card hidden" id="tab-edit">
+    <label>Customer first name</label>
+    <input type="text" id="edit-name" placeholder="Sarah" />
+    <label style="margin-top:12px">What to change</label>
+    <textarea id="edit-text" placeholder="swap the date to Saturday May 30, add gutter cleaning for $150"></textarea>
+    <button id="btn-edit">Update message</button>
+    <div id="result-edit"></div>
+  </div>
+
+  <!-- BOOK -->
+  <div class="card hidden" id="tab-book">
+    <label>Customer first name</label>
+    <input type="text" id="book-name" placeholder="Sarah" />
+    <label style="margin-top:12px">Date</label>
+    <input type="date" id="book-date" />
+    <label style="margin-top:12px">Time (optional, default 8:30 AM)</label>
+    <input type="text" id="book-time" placeholder="08:30" />
+    <button id="btn-book" class="green">Book it</button>
+    <div id="result-book"></div>
+  </div>
+
+  <!-- RECENT -->
+  <div class="card hidden" id="tab-recent">
+    <button id="btn-refresh" class="secondary">Refresh recent leads</button>
+    <div id="recent-list"></div>
+  </div>
+
+  <a href="#" class="config-link" id="config-link">Set API key</a>
+</div>
+
+<script>
+const KEY = "lp_api_key_v1";
+function getKey() {
+  let k = sessionStorage.getItem(KEY);
+  if (!k) {
+    k = prompt("Enter your LP_SHARED_SECRET (only asked once per session):");
+    if (k) sessionStorage.setItem(KEY, k);
+  }
+  return k;
+}
+document.getElementById("config-link").onclick = (e) => {
+  e.preventDefault();
+  sessionStorage.removeItem(KEY);
+  getKey();
+};
+
+async function api(path, opts = {}) {
+  const key = getKey();
+  const res = await fetch(path, {
+    method: opts.method || "POST",
+    headers: { "Content-Type": "application/json", "X-API-Key": key },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  return { status: res.status, data };
+}
+
+function renderMessage(target, data) {
+  if (data.error) {
+    target.innerHTML = `<div class="err">${data.error}</div>`;
+    return;
+  }
+  let html = "";
+  if (data.message) {
+    html += `<div class="message">${escapeHtml(data.message)}</div>`;
+    html += `<button class="secondary" onclick="copyMsg('${data.record_id || ''}')">Copy message</button>`;
+  }
+  if (data.airtable_url) {
+    html += `<div class="meta"><a href="${data.airtable_url}" target="_blank">Open in Airtable →</a></div>`;
+  }
+  if (data.calendar_url) {
+    html += `<div style="margin-top:12px"><a href="${data.calendar_url}" target="_blank"><button class="green" type="button">Add to Google Calendar</button></a></div>`;
+  }
+  if (data.summary) {
+    html += `<div class="meta">${escapeHtml(data.summary)}</div>`;
+  }
+  target.innerHTML = html;
+  if (data.message) window._lastMessage = data.message;
+}
+
+function copyMsg() {
+  if (window._lastMessage) {
+    navigator.clipboard.writeText(window._lastMessage);
+    alert("Copied!");
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+}
+
+// Tabs
+document.querySelectorAll(".tab").forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    ["new","edit","book","recent"].forEach(id => {
+      document.getElementById("tab-" + id).classList.toggle("hidden", id !== t.dataset.tab);
+    });
+  };
+});
+
+// New quote
+document.getElementById("btn-quote").onclick = async () => {
+  const notes = document.getElementById("notes").value.trim();
+  if (!notes) return;
+  const btn = document.getElementById("btn-quote");
+  const target = document.getElementById("result-new");
+  btn.disabled = true; btn.textContent = "Writing...";
+  target.innerHTML = "";
+  try {
+    const { data } = await api("/api/quote", { body: { notes } });
+    renderMessage(target, data);
+  } catch (e) {
+    target.innerHTML = `<div class="err">${e.message}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = "Write the message";
+  }
+};
+
+// Edit
+document.getElementById("btn-edit").onclick = async () => {
+  const name = document.getElementById("edit-name").value.trim();
+  const edit = document.getElementById("edit-text").value.trim();
+  if (!name || !edit) return;
+  const btn = document.getElementById("btn-edit");
+  const target = document.getElementById("result-edit");
+  btn.disabled = true; btn.textContent = "Updating...";
+  target.innerHTML = "";
+  try {
+    const { data } = await api("/api/update", { body: { name, edit } });
+    renderMessage(target, data);
+  } catch (e) {
+    target.innerHTML = `<div class="err">${e.message}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = "Update message";
+  }
+};
+
+// Book
+document.getElementById("btn-book").onclick = async () => {
+  const name = document.getElementById("book-name").value.trim();
+  const date = document.getElementById("book-date").value;
+  const time = document.getElementById("book-time").value || "08:30";
+  if (!name || !date) return;
+  const btn = document.getElementById("btn-book");
+  const target = document.getElementById("result-book");
+  btn.disabled = true; btn.textContent = "Booking...";
+  target.innerHTML = "";
+  try {
+    const { data } = await api("/api/book", { body: { name, date, time } });
+    renderMessage(target, data);
+  } catch (e) {
+    target.innerHTML = `<div class="err">${e.message}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = "Book it";
+  }
+};
+
+// Recent
+document.getElementById("btn-refresh").onclick = async () => {
+  const target = document.getElementById("recent-list");
+  target.innerHTML = "Loading...";
+  try {
+    const { data } = await api("/api/find", { method: "GET" });
+    if (!data.leads || data.leads.length === 0) {
+      target.innerHTML = "<div class='meta'>No leads yet.</div>";
+      return;
+    }
+    target.innerHTML = data.leads.map(l => `
+      <div class="lead">
+        <div class="lead-name">${escapeHtml(l.name || "(no name)")} — ${escapeHtml(l.status || "")}</div>
+        <div class="lead-meta">${escapeHtml(l.address || "")}</div>
+        <div class="lead-meta">${escapeHtml(l.date_of_conversation || "")}</div>
+      </div>
+    `).join("");
+  } catch (e) {
+    target.innerHTML = `<div class="err">${e.message}</div>`;
+  }
+};
+</script>
+</body>
+</html>
