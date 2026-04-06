@@ -232,9 +232,13 @@ def airtable_create_lead(parsed: dict, raw_notes: str) -> dict:
     return res.json()["records"][0]
 
 
+def _escape_formula(s: str) -> str:
+    return s.replace("\\", "\\\\").replace("'", "\\'")
+
+
 def airtable_search_by_name(name: str, limit: int = 5) -> list:
     """Find recent leads by first name (case-insensitive). Most recent first."""
-    safe = name.lower().replace("\\", "\\\\").replace("'", "\\'")
+    safe = _escape_formula(name.lower())
     formula = f"SEARCH(LOWER('{safe}'), LOWER({{Name}}))"
     res = requests.get(
         airtable_url(),
@@ -249,6 +253,39 @@ def airtable_search_by_name(name: str, limit: int = 5) -> list:
     )
     if res.status_code != 200:
         raise RuntimeError(f"Airtable search error {res.status_code}: {res.text[:500]}")
+    return res.json().get("records", [])
+
+
+def airtable_fuzzy_search(query: str, limit: int = 10) -> list:
+    """Multi-field fuzzy search. Splits query into whitespace tokens; each token must
+    appear in at least one of Name, Full name, or Property Details (case-insensitive).
+    Example: 'kate quakertown' matches a lead named 'Kate' with address containing 'quakertown'.
+    """
+    tokens = [t for t in query.lower().split() if t]
+    if not tokens:
+        return []
+    token_clauses = []
+    for t in tokens:
+        safe = _escape_formula(t)
+        token_clauses.append(
+            f"OR(SEARCH('{safe}', LOWER({{Name}})), "
+            f"SEARCH('{safe}', LOWER({{Full name}})), "
+            f"SEARCH('{safe}', LOWER({{Property Details}})))"
+        )
+    formula = "AND(" + ", ".join(token_clauses) + ")"
+    res = requests.get(
+        airtable_url(),
+        headers=airtable_headers(),
+        params={
+            "filterByFormula": formula,
+            "maxRecords": limit,
+            "sort[0][field]": "Date of Conversation",
+            "sort[0][direction]": "desc",
+        },
+        timeout=20,
+    )
+    if res.status_code != 200:
+        raise RuntimeError(f"Airtable fuzzy search error {res.status_code}: {res.text[:500]}")
     return res.json().get("records", [])
 
 

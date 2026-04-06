@@ -15,6 +15,7 @@ from urllib.parse import urlparse, parse_qs
 from lp_core import (
     AIRTABLE_BASE_ID,
     AIRTABLE_TABLE_ID,
+    airtable_fuzzy_search,
     airtable_list_recent,
     airtable_search_by_name,
     check_auth,
@@ -50,12 +51,15 @@ class handler(BaseHTTPRequestHandler):
 
         qs = parse_qs(urlparse(self.path).query)
         name = (qs.get("name") or [""])[0].strip()
+        q = (qs.get("q") or [""])[0].strip()
 
         try:
-            if name:
+            if q:
+                records = airtable_fuzzy_search(q, limit=10)
+            elif name:
                 records = airtable_search_by_name(name, limit=10)
             else:
-                records = airtable_list_recent(limit=10)
+                records = airtable_list_recent(limit=20)
         except Exception as e:
             return json_response(self, 502, {"error": str(e)})
 

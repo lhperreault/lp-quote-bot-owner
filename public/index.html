@@ -93,7 +93,7 @@
   <div class="card" id="tab-new">
     <div id="thread"></div>
     <label id="notes-label">Notes from the call</label>
-    <textarea id="notes" placeholder="Sarah Test, 215-555-0142, 22 oak ave doylestown, 2 story 2200 sqft vinyl clean, no porch, end of may"></textarea>
+    <textarea id="notes" placeholder="New: Sarah Test, 215-555-0142, 22 oak ave doylestown, 2 story 2200 sqft vinyl clean&#10;Or lookup: @kate quakertown"></textarea>
     <div class="row">
       <button id="btn-quote">Write the message</button>
       <button id="btn-new-convo" class="secondary hidden" style="flex:0 0 auto;padding:12px 14px">New</button>
@@ -102,7 +102,8 @@
 
   <!-- RECENT -->
   <div class="card hidden" id="tab-recent">
-    <button id="btn-refresh" class="secondary">Refresh recent leads</button>
+    <input type="text" id="recent-search" placeholder="Search name, address, service..." />
+    <button id="btn-refresh" class="secondary" style="margin-top:8px">Refresh recent leads</button>
     <div id="recent-list"></div>
   </div>
 
@@ -236,6 +237,23 @@ function resetThread() {
 
 btnNewConvo.onclick = resetThread;
 
+function renderLookupMatches(matches) {
+  const wrap = document.createElement("div");
+  wrap.className = "turn-bot";
+  let html = `<div class="reasoning"><div class="reasoning-label">Multiple matches — tap one to open</div></div>`;
+  html += matches.map((l, i) => `
+    <div class="lead" onclick="loadLeadIntoChat(window.lookupMatches[${i}])">
+      <div class="lead-name">${escapeHtml(l.name || "(no name)")} — ${escapeHtml(l.status || "")}</div>
+      <div class="lead-meta">${escapeHtml(l.address || "")}</div>
+      <div class="lead-meta">${escapeHtml(l.service_type || "")} · ${escapeHtml(l.date_of_conversation || "")}</div>
+    </div>
+  `).join("");
+  wrap.innerHTML = html;
+  thread.appendChild(wrap);
+  window.lookupMatches = matches;
+  wrap.scrollIntoView({ behavior: "smooth", block: "end" });
+}
+
 btnQuote.onclick = async () => {
   const text = notesEl.value.trim();
   if (!text) return;
@@ -246,6 +264,25 @@ btnQuote.onclick = async () => {
   notesEl.value = "";
   try {
     let data;
+    // @ prefix = fuzzy lookup of an existing lead instead of a new quote
+    if (!currentRecordId && text.startsWith("@")) {
+      const q = text.slice(1).trim();
+      const res = await api("/api/find?q=" + encodeURIComponent(q), { method: "GET" });
+      const leads = (res.data && res.data.leads) || [];
+      if (leads.length === 0) {
+        appendBotTurn({ error: `No leads matched "${q}". Type the notes normally to create a new quote, or tap Recent.` });
+      } else if (leads.length === 1) {
+        appendBotTurn({ parsed: { reasoning: `Loaded ${leads[0].name}. Send a follow-up below.`, extra_dates: [] }, message: leads[0].quote, airtable_url: leads[0].airtable_url });
+        currentRecordId = leads[0].record_id;
+        notesLabel.textContent = "Follow-up (edit, question, book a date...)";
+        notesEl.placeholder = "add gutter cleaning, or book Sat May 23";
+        btnQuote.textContent = "Send follow-up";
+        btnNewConvo.classList.remove("hidden");
+      } else {
+        renderLookupMatches(leads);
+      }
+      return;
+    }
     if (!currentRecordId) {
       const res = await api("/api/quote", { body: { notes: text } });
       data = res.data;
@@ -289,27 +326,63 @@ function loadLeadIntoChat(lead) {
 window.loadLeadIntoChat = loadLeadIntoChat;
 window.lastLeads = [];
 
-document.getElementById("btn-refresh").onclick = async () => {
+function renderLeadList(leads) {
+  const target = document.getElementById("recent-list");
+  if (!leads || leads.length === 0) {
+    target.innerHTML = "<div class='meta'>No matches.</div>";
+    return;
+  }
+  target.innerHTML = leads.map((l, i) => `
+    <div class="lead" onclick="loadLeadIntoChat(window.lastLeads[${i}])">
+      <div class="lead-name">${escapeHtml(l.name || "(no name)")} — ${escapeHtml(l.status || "")}</div>
+      <div class="lead-meta">${escapeHtml(l.address || "")}</div>
+      <div class="lead-meta">${escapeHtml(l.service_type || "")} · ${escapeHtml(l.date_of_conversation || "")}</div>
+    </div>
+  `).join("");
+}
+
+async function refreshRecent() {
   const target = document.getElementById("recent-list");
   target.innerHTML = "Loading...";
   try {
     const { data } = await api("/api/find", { method: "GET" });
-    if (!data.leads || data.leads.length === 0) {
-      target.innerHTML = "<div class='meta'>No leads yet.</div>";
-      return;
-    }
-    window.lastLeads = data.leads;
-    target.innerHTML = data.leads.map((l, i) => `
-      <div class="lead" onclick="loadLeadIntoChat(window.lastLeads[${i}])">
-        <div class="lead-name">${escapeHtml(l.name || "(no name)")} — ${escapeHtml(l.status || "")}</div>
-        <div class="lead-meta">${escapeHtml(l.address || "")}</div>
-        <div class="lead-meta">${escapeHtml(l.date_of_conversation || "")}</div>
-      </div>
-    `).join("");
+    window.lastLeads = data.leads || [];
+    window.allLeads = window.lastLeads.slice();
+    renderLeadList(window.lastLeads);
   } catch (e) {
     target.innerHTML = `<div class="err">${e.message}</div>`;
   }
-};
+}
+document.getElementById("btn-refresh").onclick = refreshRecent;
+
+// Client-side filter on name + address + service
+document.getElementById("recent-search").addEventListener("input", (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  if (!window.allLeads) return;
+  if (!q) {
+    window.lastLeads = window.allLeads.slice();
+  } else {
+    const tokens = q.split(/\s+/);
+    window.lastLeads = window.allLeads.filter(l => {
+      const hay = [l.name, l.full_name, l.address, l.service_type, l.status].join(" ").toLowerCase();
+      return tokens.every(t => hay.includes(t));
+    });
+  }
+  renderLeadList(window.lastLeads);
+});
+
+// Auto-load recent on first tab open
+let recentLoaded = false;
+document.querySelectorAll(".tab").forEach(t => {
+  const prev = t.onclick;
+  t.onclick = () => {
+    prev && prev();
+    if (t.dataset.tab === "recent" && !recentLoaded) {
+      recentLoaded = true;
+      refreshRecent();
+    }
+  };
+});
 </script>
 </body>
 </html>
