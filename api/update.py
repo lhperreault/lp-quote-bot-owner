@@ -98,12 +98,18 @@ class handler(BaseHTTPRequestHandler):
             record = matches[0]
 
         existing_quote = record["fields"].get("Quote", "")
+        existing_concerns = record["fields"].get("Concerns", "")
+        original_notes = record["fields"].get("Conversation Log", "")
 
-        # Ask Claude to regenerate with the edit applied
+        # Give Claude full context so it can answer questions or revise
         user_msg = (
-            f"Here is the existing message I already wrote and saved:\n\n{existing_quote}\n\n"
-            f"Please apply this edit and return the FULL revised message in the standard JSON format. "
-            f"Edit: {edit}"
+            f"FOLLOW-UP on an existing quote.\n\n"
+            f"Original notes from Luke:\n{original_notes}\n\n"
+            f"Previous customer-facing message:\n{existing_quote}\n\n"
+            f"Previous reasoning/history:\n{existing_concerns}\n\n"
+            f"Luke's new input: {edit}\n\n"
+            f"Return the standard JSON. If it's a question, keep message unchanged and answer in reasoning. "
+            f"If it's an edit, update message and reasoning accordingly."
         )
 
         try:
@@ -112,9 +118,11 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return json_response(self, 502, {"error": f"Claude regenerate failed: {e}"})
 
-        # Update Airtable: replace Quote, append edit note to Concerns
-        existing_concerns = record["fields"].get("Concerns", "")
-        new_concerns = (existing_concerns + "\n" if existing_concerns else "") + f"[edit] {edit}"
+        # Update Airtable: replace Quote, append edit + new reasoning to Concerns
+        new_reasoning = parsed.get("reasoning", "")
+        new_concerns = (existing_concerns + "\n\n" if existing_concerns else "") + f"[edit] {edit}"
+        if new_reasoning:
+            new_concerns += f"\nReasoning: {new_reasoning}"
 
         try:
             airtable_update(record["id"], {

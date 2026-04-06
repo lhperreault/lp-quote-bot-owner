@@ -59,6 +59,19 @@
   .lead-meta { font-size: 13px; color: var(--muted); }
   .config-link { font-size: 13px; color: var(--muted); text-align: center;
     display: block; margin-top: 16px; }
+  .turn-user { background: #eef2ff; border-radius: 10px; padding: 10px 12px;
+    margin-bottom: 12px; font-size: 14px; color: #3730a3; white-space: pre-wrap; }
+  .turn-bot { margin-bottom: 16px; }
+  .reasoning { background: #fffbeb; border-left: 3px solid #f59e0b; border-radius: 6px;
+    padding: 10px 12px; margin-top: 10px; font-size: 13px; white-space: pre-wrap; color: #78350f; }
+  .reasoning-label { font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #92400e; margin-bottom: 4px; }
+  .dates { margin-top: 10px; }
+  .dates-label { font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px; }
+  .date-chip { display: inline-block; background: #f0fdf4; border: 1px solid #bbf7d0;
+    color: #166534; padding: 6px 10px; border-radius: 999px; font-size: 13px;
+    margin: 0 6px 6px 0; }
 </style>
 </head>
 <body>
@@ -73,12 +86,15 @@
     <div class="tab" data-tab="recent">Recent</div>
   </div>
 
-  <!-- NEW QUOTE -->
+  <!-- NEW QUOTE / CHAT -->
   <div class="card" id="tab-new">
-    <label>Notes from the call</label>
+    <div id="thread"></div>
+    <label id="notes-label">Notes from the call</label>
     <textarea id="notes" placeholder="Sarah Test, 215-555-0142, 22 oak ave doylestown, 2 story 2200 sqft vinyl clean, no porch, end of may"></textarea>
-    <button id="btn-quote">Write the message</button>
-    <div id="result-new"></div>
+    <div class="row">
+      <button id="btn-quote">Write the message</button>
+      <button id="btn-new-convo" class="secondary hidden" style="flex:0 0 auto;padding:12px 14px">New</button>
+    </div>
   </div>
 
   <!-- EDIT EXISTING -->
@@ -149,12 +165,6 @@ function renderMessage(target, data) {
   if (data.message) window._lastMessage = data.message;
 }
 
-function copyMsg() {
-  if (window._lastMessage) {
-    navigator.clipboard.writeText(window._lastMessage);
-    alert("Copied!");
-  }
-}
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
@@ -171,21 +181,105 @@ document.querySelectorAll(".tab").forEach(t => {
   };
 });
 
-// New quote
-document.getElementById("btn-quote").onclick = async () => {
-  const notes = document.getElementById("notes").value.trim();
-  if (!notes) return;
-  const btn = document.getElementById("btn-quote");
-  const target = document.getElementById("result-new");
-  btn.disabled = true; btn.textContent = "Writing...";
-  target.innerHTML = "";
+// Chat thread state
+let currentRecordId = null;
+const thread = document.getElementById("thread");
+const notesEl = document.getElementById("notes");
+const notesLabel = document.getElementById("notes-label");
+const btnQuote = document.getElementById("btn-quote");
+const btnNewConvo = document.getElementById("btn-new-convo");
+
+function appendUserTurn(text) {
+  const div = document.createElement("div");
+  div.className = "turn-user";
+  div.textContent = text;
+  thread.appendChild(div);
+}
+
+function appendBotTurn(data) {
+  const wrap = document.createElement("div");
+  wrap.className = "turn-bot";
+  if (data.error) {
+    wrap.innerHTML = `<div class="err">${escapeHtml(data.error)}</div>`;
+    thread.appendChild(wrap);
+    return;
+  }
+  const msg = data.message || (data.parsed && data.parsed.message) || "";
+  const reasoning = (data.parsed && data.parsed.reasoning) || "";
+  const extraDates = (data.parsed && data.parsed.extra_dates) || [];
+  let html = "";
+  if (msg) {
+    const msgId = "msg_" + Date.now();
+    html += `<div class="message" id="${msgId}">${escapeHtml(msg)}</div>`;
+    html += `<button class="secondary" onclick="copyById('${msgId}')">Copy message</button>`;
+  }
+  if (reasoning) {
+    html += `<div class="reasoning"><div class="reasoning-label">Reasoning / breakdown</div>${escapeHtml(reasoning)}</div>`;
+  }
+  if (extraDates.length) {
+    html += `<div class="dates"><div class="dates-label">Other date options</div>`;
+    html += extraDates.map(d => `<span class="date-chip">${escapeHtml(d)}</span>`).join("");
+    html += `</div>`;
+  }
+  if (data.airtable_url) {
+    html += `<div class="meta" style="margin-top:10px"><a href="${data.airtable_url}" target="_blank">Open in Airtable →</a></div>`;
+  }
+  wrap.innerHTML = html;
+  thread.appendChild(wrap);
+  wrap.scrollIntoView({ behavior: "smooth", block: "end" });
+}
+
+function copyById(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    navigator.clipboard.writeText(el.textContent);
+    alert("Copied!");
+  }
+}
+window.copyById = copyById;
+
+function resetThread() {
+  currentRecordId = null;
+  thread.innerHTML = "";
+  notesEl.value = "";
+  notesEl.placeholder = "Sarah Test, 215-555-0142, 22 oak ave doylestown, 2 story 2200 sqft vinyl clean, no porch, end of may";
+  notesLabel.textContent = "Notes from the call";
+  btnQuote.textContent = "Write the message";
+  btnNewConvo.classList.add("hidden");
+}
+
+btnNewConvo.onclick = resetThread;
+
+btnQuote.onclick = async () => {
+  const text = notesEl.value.trim();
+  if (!text) return;
+  btnQuote.disabled = true;
+  const origLabel = btnQuote.textContent;
+  btnQuote.textContent = currentRecordId ? "Sending..." : "Writing...";
+  appendUserTurn(text);
+  notesEl.value = "";
   try {
-    const { data } = await api("/api/quote", { body: { notes } });
-    renderMessage(target, data);
+    let data;
+    if (!currentRecordId) {
+      const res = await api("/api/quote", { body: { notes: text } });
+      data = res.data;
+      if (data.record_id) currentRecordId = data.record_id;
+    } else {
+      const res = await api("/api/update", { body: { record_id: currentRecordId, edit: text } });
+      data = res.data;
+    }
+    appendBotTurn(data);
+    if (currentRecordId) {
+      notesLabel.textContent = "Follow-up (edit, question, date change...)";
+      notesEl.placeholder = "add gutter cleaning, or did you include the chimney?, or swap to Sat May 30";
+      btnQuote.textContent = "Send follow-up";
+      btnNewConvo.classList.remove("hidden");
+    }
   } catch (e) {
-    target.innerHTML = `<div class="err">${e.message}</div>`;
+    appendBotTurn({ error: e.message });
+    btnQuote.textContent = origLabel;
   } finally {
-    btn.disabled = false; btn.textContent = "Write the message";
+    btnQuote.disabled = false;
   }
 };
 

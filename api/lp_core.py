@@ -113,8 +113,15 @@ CRITICAL OUTPUT FORMAT — return ONLY a JSON object with exactly these keys:
   "service_type": "short label like 'House wash + patio'",
   "property_details": "address + sqft + stories + material + condition",
   "concerns": "any objections, special requests, or notes about partial-sides etc",
-  "message": "the full customer-ready message text exactly as Luke would send it. Include the (Note to Luke: ...) line at the end if you made assumptions."
+  "message": "the full customer-ready message text exactly as Luke would send it. Do NOT include any (Note to Luke: ...) line here — that goes in reasoning instead.",
+  "reasoning": "Luke-facing breakdown: how you got to the price, what assumptions you made (sqft, condition, stories), what you included/excluded, and any flags Luke should verify before sending. Be specific with numbers. Example: 'Assumed 2000-2300 sqft, 2-story, clean. House wash $360 (2-story clean 2000-2300 tier). No porch mentioned so skipped. If actually 2300-2600 price goes to $390. Chimney not mentioned in notes so not included.'",
+  "extra_dates": ["3-4 additional booking dates beyond the two in the message, as short strings like 'Saturday May 30' or 'Thursday May 28'. Pick a mix of weekends and weekdays spanning the next 2-3 weeks from the season start. Never before May 16, 2026."]
 }
+
+If Luke is asking a FOLLOW-UP question or requesting an EDIT on an existing quote, the user message will contain context with the previous message, reasoning, and original notes. In that case:
+- If it's a question (e.g. "did you account for the chimney?"), keep message unchanged and answer in reasoning.
+- If it's an edit (e.g. "add deck $150", "make the price $20 lower", "swap to the 30th"), update message AND reasoning to reflect the change.
+- Always return the full JSON, never partial.
 
 Return ONLY the JSON. No markdown fences, no preamble, no explanation."""
 
@@ -203,7 +210,7 @@ def airtable_create_lead(parsed: dict, raw_notes: str) -> dict:
         FIELD_SERVICE_TYPE: parsed.get("service_type", ""),
         FIELD_PROPERTY_DETAILS: parsed.get("property_details", ""),
         FIELD_QUOTE: parsed.get("message", ""),
-        FIELD_CONCERNS: parsed.get("concerns", ""),
+        FIELD_CONCERNS: (parsed.get("concerns", "") + ("\n\n---\nReasoning:\n" + parsed.get("reasoning", "") if parsed.get("reasoning") else "")).strip(),
         FIELD_DATE_OF_CONVO: datetime.now(timezone.utc).isoformat(),
         FIELD_LEAD_STATUS: "Quoted",
         FIELD_CONVO_LOG: raw_notes,
