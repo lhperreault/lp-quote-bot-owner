@@ -300,9 +300,9 @@ btnQuote.onclick = async () => {
     }
   } catch (e) {
     appendBotTurn({ error: e.message });
-    btnQuote.textContent = origLabel;
   } finally {
     btnQuote.disabled = false;
+    btnQuote.textContent = currentRecordId ? "Send follow-up" : origLabel;
   }
 };
 

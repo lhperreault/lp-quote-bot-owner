@@ -217,4 +217,5 @@ class handler(BaseHTTPRequestHandler):
 
         payload["intent"] = intent
         payload["router_reason"] = reason
+        print(f"[route] intent={intent} reason={reason} record_id={payload.get('record_id')} matched={payload.get('matched_client_name','')}")
         return json_response(self, 200, payload)

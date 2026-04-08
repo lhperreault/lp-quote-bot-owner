@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"C:/Users/lukep/Documents/Claude/Projects/Sara Law Firm\")",
+      "Bash(cp -r \"C:/Users/lukep/Documents/Salle/Business/Senior Year/TFG/Projectfiles/clientchatbot/.\" \"C:/Users/lukep/Documents/Claude/Projects/Sara Law Firm/\")",
+      "Read(//c/Users/lukep/Documents/Claude/Projects/Sara Law Firm/**)",
+      "Read(//c/Users/lukep/Documents/Claude/Projects/Sara Law Firm/app/**)"
+    ]
+  }
+}
