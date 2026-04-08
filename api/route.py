@@ -170,7 +170,15 @@ class handler(BaseHTTPRequestHandler):
             likely = None
 
         n = notes.lower().strip()
-        is_question = any(k in n for k in (
+        import re as _re
+        # Strong "this is a new lead" signals: phone, sqft, street suffix
+        looks_like_new_lead = bool(
+            _re.search(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", notes)
+            or _re.search(r"\b\d{2,5}\s*sq\s*ft\b", n)
+            or _re.search(r"\b(road|rd|street|st|ave|avenue|blvd|drive|dr|lane|ln|ct|court|way)\b", n)
+            or n.startswith("new ") or n.startswith("new:")
+        )
+        is_question = (not looks_like_new_lead) and any(k in n for k in (
             "how many", "how much", "what is", "what's", "average", "total ",
             "revenue", "ltv", "who has", "who hasn", "list ", "show me",
         ))
@@ -185,6 +193,10 @@ class handler(BaseHTTPRequestHandler):
         elif likely:
             intent = "book_existing" if booking_words else "update_existing"
             reason = f"db match: {(likely.get('fields') or {}).get('Name','')}"
+        elif looks_like_new_lead:
+            # Phone / address / sqft present → cold lead, skip the LLM
+            intent = "new_estimate"
+            reason = "lead signals (phone/addr/sqft)"
         else:
             # No client matched in DB → ask the classifier whether this is a
             # brand new lead/booking or a general question.
@@ -217,5 +229,9 @@ class handler(BaseHTTPRequestHandler):
 
         payload["intent"] = intent
         payload["router_reason"] = reason
+        # Frontend always renders data.message — for question intent,
+        # surface the agent's answer there too.
+        if intent == "question" and payload.get("answer") and not payload.get("message"):
+            payload["message"] = payload["answer"]
         print(f"[route] intent={intent} reason={reason} record_id={payload.get('record_id')} matched={payload.get('matched_client_name','')}")
         return json_response(self, 200, payload)
