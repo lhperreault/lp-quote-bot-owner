@@ -1305,8 +1305,8 @@ TWILIO_WEBHOOK_VALIDATE = os.environ.get("TWILIO_WEBHOOK_VALIDATE", "true").lowe
 
 BUSINESS_TZ = os.environ.get("BUSINESS_TZ", "America/New_York")
 BUSINESS_HOURS_START = int(os.environ.get("BUSINESS_HOURS_START", "8"))
-BUSINESS_HOURS_END = int(os.environ.get("BUSINESS_HOURS_END", "18"))
-BUSINESS_DAYS = os.environ.get("BUSINESS_DAYS", "0,1,2,3,4,5")  # Mon=0 ... Sun=6
+BUSINESS_HOURS_END = int(os.environ.get("BUSINESS_HOURS_END", "19"))
+BUSINESS_DAYS = os.environ.get("BUSINESS_DAYS", "0,1,2,3,4,5,6")  # Mon=0 ... Sun=6
 CALL_FORWARD_RING_SECONDS = int(os.environ.get("CALL_FORWARD_RING_SECONDS", "10"))
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
 
