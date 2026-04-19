@@ -1,20 +1,30 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/quote.py",  "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
-    { "src": "api/update.py", "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
-    { "src": "api/book.py",   "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
-    { "src": "api/find.py",   "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
-    { "src": "api/route.py",  "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
-    { "src": "public/**",     "use": "@vercel/static" }
+    { "src": "api/quote.py",                       "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "api/update.py",                      "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "api/book.py",                        "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "api/find.py",                        "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "api/route.py",                       "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "api/twilio_sms.py",                  "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "api/twilio_voice.py",                "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "api/twilio_recording.py",            "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "api/twilio_recording_complete.py",   "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "api/approve.py",                     "use": "@vercel/python", "config": { "includeFiles": "api/**" } },
+    { "src": "public/**",                          "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/api/quote",  "dest": "/api/quote.py" },
-    { "src": "/api/update", "dest": "/api/update.py" },
-    { "src": "/api/book",   "dest": "/api/book.py" },
-    { "src": "/api/find",   "dest": "/api/find.py" },
-    { "src": "/api/route",  "dest": "/api/route.py" },
-    { "src": "/",           "dest": "/public/index.html" },
-    { "src": "/(.*)",       "dest": "/public/$1" }
+    { "src": "/api/quote",                        "dest": "/api/quote.py" },
+    { "src": "/api/update",                       "dest": "/api/update.py" },
+    { "src": "/api/book",                         "dest": "/api/book.py" },
+    { "src": "/api/find",                         "dest": "/api/find.py" },
+    { "src": "/api/route",                        "dest": "/api/route.py" },
+    { "src": "/api/approve",                      "dest": "/api/approve.py" },
+    { "src": "/api/twilio-sms",                   "dest": "/api/twilio_sms.py" },
+    { "src": "/api/twilio-voice",                 "dest": "/api/twilio_voice.py" },
+    { "src": "/api/twilio-recording",             "dest": "/api/twilio_recording.py" },
+    { "src": "/api/twilio-recording-complete",    "dest": "/api/twilio_recording_complete.py" },
+    { "src": "/",                                 "dest": "/public/index.html" },
+    { "src": "/(.*)",                             "dest": "/public/$1" }
   ]
 }

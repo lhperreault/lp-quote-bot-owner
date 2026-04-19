@@ -23,6 +23,12 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 AIRTABLE_PAT = os.environ.get("AIRTABLE_PAT", "")
 AIRTABLE_BASE_ID = os.environ.get("AIRTABLE_BASE_ID", "appqep8mBMzhS6lFt")
+NOTION_API_KEY = os.environ.get("NOTION_API_KEY", "")
+NOTION_RULES_PAGE_IDS = os.environ.get("NOTION_RULES_PAGE_IDS", "")
+NOTION_RULES_TTL_SECONDS = int(os.environ.get("NOTION_RULES_TTL_SECONDS", "300"))
+APPROVAL_TOKEN_SECRET = os.environ.get("APPROVAL_TOKEN_SECRET", "")
+APPROVAL_TOKEN_TTL_SECONDS = int(os.environ.get("APPROVAL_TOKEN_TTL_SECONDS", "86400"))
+EDIT_LOG_TABLE = os.environ.get("EDIT_LOG_TABLE", "Edit Log")
 
 # ---------- Airtable tables ----------
 
@@ -229,6 +235,170 @@ def parse_quote_json(raw: str) -> dict:
         if not match:
             raise RuntimeError(f"Could not parse JSON from Claude response: {raw[:300]}")
         return json.loads(match.group(0))
+
+
+# ---------- Approval token (HMAC, signs row_id + expiry) ----------
+
+def make_approval_token(row_id: str, ttl_seconds: int | None = None) -> str:
+    """Build a signed, expiring token for the approval URL. Returns '<exp>.<sig>'
+    where exp is unix seconds and sig is base64url HMAC-SHA256."""
+    import base64
+    import hashlib
+    import hmac as _hmac
+    import time
+    if not APPROVAL_TOKEN_SECRET:
+        raise RuntimeError("APPROVAL_TOKEN_SECRET not set")
+    exp = int(time.time()) + (ttl_seconds if ttl_seconds is not None else APPROVAL_TOKEN_TTL_SECONDS)
+    msg = f"{row_id}|{exp}".encode("utf-8")
+    mac = _hmac.new(APPROVAL_TOKEN_SECRET.encode("utf-8"), msg, hashlib.sha256).digest()
+    sig = base64.urlsafe_b64encode(mac).rstrip(b"=").decode("utf-8")
+    return f"{exp}.{sig}"
+
+
+def verify_approval_token(row_id: str, token: str) -> bool:
+    """Validate a token produced by make_approval_token. Returns False if
+    expired, tampered, or malformed."""
+    import base64
+    import hashlib
+    import hmac as _hmac
+    import time
+    if not APPROVAL_TOKEN_SECRET or not token or "." not in token:
+        return False
+    try:
+        exp_str, sig = token.split(".", 1)
+        exp = int(exp_str)
+    except ValueError:
+        return False
+    if exp < int(time.time()):
+        return False
+    msg = f"{row_id}|{exp}".encode("utf-8")
+    expected_mac = _hmac.new(APPROVAL_TOKEN_SECRET.encode("utf-8"), msg, hashlib.sha256).digest()
+    expected_sig = base64.urlsafe_b64encode(expected_mac).rstrip(b"=").decode("utf-8")
+    return _hmac.compare_digest(expected_sig, sig)
+
+
+# ---------- Notion rules fetch (cached) ----------
+
+_NOTION_CACHE: dict[str, tuple[float, str]] = {}
+_NOTION_API_VERSION = "2022-06-28"
+_TEXT_BLOCK_KEYS = (
+    "paragraph", "heading_1", "heading_2", "heading_3",
+    "bulleted_list_item", "numbered_list_item", "to_do", "toggle", "quote", "callout",
+)
+
+
+def _notion_headers() -> dict:
+    return {
+        "Authorization": f"Bearer {NOTION_API_KEY}",
+        "Notion-Version": _NOTION_API_VERSION,
+        "Content-Type": "application/json",
+    }
+
+
+def _notion_page_title(page_id: str) -> str:
+    try:
+        res = requests.get(
+            f"https://api.notion.com/v1/pages/{page_id}",
+            headers=_notion_headers(),
+            timeout=8,
+        )
+        if res.status_code != 200:
+            return ""
+        props = res.json().get("properties", {}) or {}
+        for v in props.values():
+            if v.get("type") == "title":
+                segs = v.get("title", []) or []
+                return "".join(s.get("plain_text", "") for s in segs).strip()
+    except Exception:
+        return ""
+    return ""
+
+
+def _notion_block_text(block: dict) -> str:
+    """Flatten one Notion block to plain text. Returns '' for non-text blocks."""
+    btype = block.get("type", "")
+    if btype not in _TEXT_BLOCK_KEYS:
+        return ""
+    content = block.get(btype, {}) or {}
+    rich = content.get("rich_text", []) or []
+    text = "".join(s.get("plain_text", "") for s in rich)
+    if not text:
+        return ""
+    if btype.startswith("heading_"):
+        level = int(btype[-1])
+        return ("#" * level) + " " + text
+    if btype == "bulleted_list_item":
+        return "- " + text
+    if btype == "numbered_list_item":
+        return "1. " + text
+    if btype == "to_do":
+        checked = content.get("checked", False)
+        return ("[x] " if checked else "[ ] ") + text
+    if btype == "quote":
+        return "> " + text
+    return text
+
+
+def _fetch_notion_page_text(page_id: str) -> str:
+    """Fetch a Notion page's blocks and flatten to plain text. Handles pagination.
+    Does NOT recurse into nested children (keeps webhook latency bounded)."""
+    lines: list = []
+    title = _notion_page_title(page_id)
+    if title:
+        lines.append(f"# {title}")
+    cursor = None
+    while True:
+        params = {"page_size": "100"}
+        if cursor:
+            params["start_cursor"] = cursor
+        try:
+            res = requests.get(
+                f"https://api.notion.com/v1/blocks/{page_id}/children",
+                headers=_notion_headers(),
+                params=params,
+                timeout=8,
+            )
+        except Exception as e:
+            print(f"[notion] fetch error for {page_id}: {e}")
+            return "\n".join(lines)
+        if res.status_code != 200:
+            print(f"[notion] {res.status_code} for {page_id}: {res.text[:200]}")
+            return "\n".join(lines)
+        data = res.json()
+        for block in data.get("results", []) or []:
+            text = _notion_block_text(block)
+            if text:
+                lines.append(text)
+        if not data.get("has_more"):
+            break
+        cursor = data.get("next_cursor")
+        if not cursor:
+            break
+    return "\n".join(lines)
+
+
+def fetch_notion_rules_cached() -> str:
+    """Return concatenated plain-text rules from NOTION_RULES_PAGE_IDS with a
+    5-min TTL cache. Returns '' if Notion is unconfigured or unreachable -
+    callers must fall back to the hard-coded pricing in SYSTEM_PROMPT."""
+    import time
+    if not NOTION_API_KEY or not NOTION_RULES_PAGE_IDS.strip():
+        return ""
+    page_ids = [p.strip() for p in NOTION_RULES_PAGE_IDS.split(",") if p.strip()]
+    if not page_ids:
+        return ""
+    now = time.time()
+    sections = []
+    for pid in page_ids:
+        cached = _NOTION_CACHE.get(pid)
+        if cached and (now - cached[0]) < NOTION_RULES_TTL_SECONDS:
+            text = cached[1]
+        else:
+            text = _fetch_notion_page_text(pid)
+            _NOTION_CACHE[pid] = (now, text)
+        if text.strip():
+            sections.append(text)
+    return "\n\n---\n\n".join(sections)
 
 
 # ---------- Airtable: low-level ----------
@@ -1102,3 +1272,319 @@ def handle_options(handler) -> None:
     handler.send_header("Access-Control-Allow-Headers", "Content-Type, X-API-Key")
     handler.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
     handler.end_headers()
+
+
+def read_form_body(handler) -> dict:
+    """Parse application/x-www-form-urlencoded body (Twilio webhooks use this).
+    Returns a flat dict of first-values. Empty dict if body is missing."""
+    length = int(handler.headers.get("Content-Length", "0") or "0")
+    if length == 0:
+        return {}
+    raw = handler.rfile.read(length).decode("utf-8", errors="replace")
+    if not raw:
+        return {}
+    parsed = urllib.parse.parse_qs(raw, keep_blank_values=True)
+    return {k: v[0] if v else "" for k, v in parsed.items()}
+
+
+def xml_response(handler, body: str, status: int = 200) -> None:
+    """Respond with TwiML (XML). Twilio expects text/xml or application/xml."""
+    handler.send_response(status)
+    handler.send_header("Content-Type", "application/xml; charset=utf-8")
+    handler.end_headers()
+    handler.wfile.write(body.encode("utf-8"))
+
+
+# ---------- Twilio ----------
+
+TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
+TWILIO_BUSINESS_NUMBER = os.environ.get("TWILIO_BUSINESS_NUMBER", "")
+LUKE_PERSONAL_NUMBER = os.environ.get("LUKE_PERSONAL_NUMBER", "")
+TWILIO_WEBHOOK_VALIDATE = os.environ.get("TWILIO_WEBHOOK_VALIDATE", "true").lower() != "false"
+
+BUSINESS_TZ = os.environ.get("BUSINESS_TZ", "America/New_York")
+BUSINESS_HOURS_START = int(os.environ.get("BUSINESS_HOURS_START", "8"))
+BUSINESS_HOURS_END = int(os.environ.get("BUSINESS_HOURS_END", "18"))
+BUSINESS_DAYS = os.environ.get("BUSINESS_DAYS", "0,1,2,3,4,5")  # Mon=0 ... Sun=6
+CALL_FORWARD_RING_SECONDS = int(os.environ.get("CALL_FORWARD_RING_SECONDS", "10"))
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
+
+
+def twilio_request_url(handler) -> str:
+    """Reconstruct the public URL Twilio called. Vercel sits behind a proxy so
+    trust x-forwarded-* headers. Used for signature verification."""
+    proto = handler.headers.get("x-forwarded-proto", "https")
+    host = handler.headers.get("x-forwarded-host") or handler.headers.get("host", "")
+    return f"{proto}://{host}{handler.path}"
+
+
+def verify_twilio_signature(url: str, form: dict, signature: str) -> bool:
+    """Validate Twilio's X-Twilio-Signature header against the request payload.
+    Fails closed: returns False if the auth token or signature is missing."""
+    import base64
+    import hashlib
+    import hmac as _hmac
+    if not TWILIO_AUTH_TOKEN or not signature:
+        return False
+    data = url
+    for key in sorted(form.keys()):
+        data += key + (form.get(key) or "")
+    mac = _hmac.new(
+        TWILIO_AUTH_TOKEN.encode("utf-8"),
+        data.encode("utf-8"),
+        hashlib.sha1,
+    )
+    expected = base64.b64encode(mac.digest()).decode("utf-8")
+    return _hmac.compare_digest(expected, signature)
+
+
+def twilio_send_sms(to: str, body: str, from_: str | None = None) -> str | None:
+    """Send an SMS via Twilio REST API. Returns the Twilio message SID or None on failure."""
+    if not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN):
+        print("[twilio] SID/token not configured — skipping send")
+        return None
+    sender = from_ or TWILIO_BUSINESS_NUMBER
+    if not sender or not to:
+        return None
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
+    try:
+        res = requests.post(
+            url,
+            auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN),
+            data={"To": to, "From": sender, "Body": body},
+            timeout=15,
+        )
+        if res.status_code in (200, 201):
+            return res.json().get("sid")
+        print(f"[twilio] SMS send failed {res.status_code}: {res.text[:300]}")
+    except Exception as e:
+        print(f"[twilio] SMS send exception: {e}")
+    return None
+
+
+def is_business_hours(now: datetime | None = None) -> bool:
+    """True if current time is within configured business hours (Luke's local TZ)."""
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo(BUSINESS_TZ)
+    except Exception:
+        tz = timezone.utc
+    now = (now or datetime.now(timezone.utc)).astimezone(tz)
+    allowed = {int(d) for d in BUSINESS_DAYS.split(",") if d.strip().isdigit()}
+    if now.weekday() not in allowed:
+        return False
+    return BUSINESS_HOURS_START <= now.hour < BUSINESS_HOURS_END
+
+
+def generate_draft_code() -> str:
+    """Short code like 'A1' for SMS approval flow. ~260 combinations per letter/digit."""
+    import random, string
+    return f"{random.choice(string.ascii_uppercase)}{random.randint(0, 9)}"
+
+
+# ---------- Airtable: Clients by phone ----------
+
+def _normalize_phone(phone: str) -> str:
+    """Strip everything except digits and a leading +. Helps match Twilio E.164 vs US formats."""
+    if not phone:
+        return ""
+    digits = re.sub(r"[^\d+]", "", phone)
+    # Strip leading + for Airtable comparisons that may store without it
+    return digits
+
+
+def clients_find_by_phone(phone: str) -> dict | None:
+    """Find a Client by phone number. Tries a few format variants because Airtable
+    may store the number with/without country code, dashes, or parens."""
+    phone = (phone or "").strip()
+    if not phone:
+        return None
+
+    digits_only = re.sub(r"\D", "", phone)           # 12679128285
+    last10 = digits_only[-10:] if len(digits_only) >= 10 else digits_only  # 2679128285
+
+    # Build a formula that matches any common storage variant
+    clauses = []
+    for candidate in {phone, digits_only, last10, f"+{digits_only}"}:
+        if candidate:
+            clauses.append(f"FIND('{_escape_formula(candidate)}', {{Phone}} & '') > 0")
+    formula = "OR(" + ", ".join(clauses) + ")"
+    matches = clients_search(formula, limit=1)
+    return matches[0] if matches else None
+
+
+def build_client_context(phone: str) -> tuple[dict | None, list, str]:
+    """Look up a client by phone and return (client_record, past_jobs, history_text).
+    If no client found, returns (None, [], ''). The history_text is ready to prepend
+    to Claude's user message."""
+    client = clients_find_by_phone(phone)
+    if not client:
+        return None, [], ""
+    past_jobs = jobs_for_client(client["id"], limit=4)
+    history = format_client_history(client, past_jobs)
+    return client, past_jobs, history
+
+
+# ---------- Airtable: Conversations ----------
+
+def _convo_turn_id() -> str:
+    return datetime.now(timezone.utc).strftime("%y%m%d%H%M%S")
+
+
+def log_conversation(
+    client_id: str,
+    message: str,
+    direction: str = "Inbound",       # "Inbound" | "Outbound"
+    author: str = "Client",           # "Client" | "Luke" | "AI"
+    channel: str = "SMS",             # "SMS" | "Phone" | "Website chatbot" | ...
+    status: str | None = None,        # "Received" | "Draft pending" | "Sent" | "Cancelled" | "Failed"
+    intent: str = "",
+    summary: str = "",
+    job_id: str | None = None,
+    draft_code: str | None = None,
+    customer_phone: str | None = None,
+) -> dict:
+    """Write a single Conversation row. Returns the created record."""
+    if not status:
+        status = "Received" if direction == "Inbound" else "Sent"
+    fields = _strip_none({
+        CONVO_TURN: f"{_convo_turn_id()}-{direction[:3].lower()}",
+        CONVO_CLIENT: [client_id] if client_id else None,
+        CONVO_JOB: [job_id] if job_id else None,
+        CONVO_CHANNEL: channel or None,
+        CONVO_DIRECTION: direction or None,
+        CONVO_AUTHOR: author or None,
+        CONVO_MESSAGE: message or None,
+        CONVO_TIMESTAMP: datetime.now(timezone.utc).isoformat(),
+        CONVO_INTENT: intent or None,
+        CONVO_SUMMARY: summary or None,
+        # New fields added for SMS draft approval flow:
+        "Status": status,
+        "Draft code": draft_code or None,
+        "Customer phone": customer_phone or None,
+    })
+    res = requests.post(
+        conversations_url(),
+        headers=airtable_headers(),
+        json={"records": [{"fields": fields}]},
+        timeout=20,
+    )
+    if res.status_code not in (200, 201):
+        raise RuntimeError(f"Conversation create error {res.status_code}: {res.text[:500]}")
+    return res.json()["records"][0]
+
+
+def get_conversation(record_id: str) -> dict | None:
+    """Fetch a single Conversations row by record ID."""
+    if not record_id:
+        return None
+    try:
+        res = requests.get(conversations_url(record_id), headers=airtable_headers(), timeout=20)
+    except Exception:
+        return None
+    if res.status_code != 200:
+        return None
+    return res.json()
+
+
+def find_pending_draft_by_code(code: str) -> dict | None:
+    """Look up the most recent pending-draft Conversation row by its short code."""
+    code = (code or "").strip().upper()
+    if not code:
+        return None
+    formula = (
+        f"AND("
+        f"UPPER({{Draft code}}) = '{_escape_formula(code)}', "
+        f"{{Status}} = 'Draft pending'"
+        f")"
+    )
+    params = {
+        "filterByFormula": formula,
+        "maxRecords": 1,
+        "sort[0][field]": "Timestamp",
+        "sort[0][direction]": "desc",
+    }
+    res = requests.get(conversations_url(), headers=airtable_headers(), params=params, timeout=20)
+    if res.status_code != 200:
+        return None
+    recs = res.json().get("records", [])
+    return recs[0] if recs else None
+
+
+def find_oldest_pending_draft() -> dict | None:
+    """When Luke replies with plain text (no code), apply it to the oldest pending draft."""
+    params = {
+        "filterByFormula": "{Status} = 'Draft pending'",
+        "maxRecords": 1,
+        "sort[0][field]": "Timestamp",
+        "sort[0][direction]": "asc",
+    }
+    res = requests.get(conversations_url(), headers=airtable_headers(), params=params, timeout=20)
+    if res.status_code != 200:
+        return None
+    recs = res.json().get("records", [])
+    return recs[0] if recs else None
+
+
+def mark_draft_status(
+    record_id: str,
+    status: str,
+    final_message: str | None = None,
+    *,
+    set_sent_at: bool = False,
+    set_notification_sent_at: bool = False,
+) -> None:
+    """Update a draft Conversation row's status (and optionally the Message
+    body / Sent_At / Notification_Sent_At timestamps)."""
+    fields: dict = {"Status": status}
+    if final_message is not None:
+        fields[CONVO_MESSAGE] = final_message
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if set_sent_at:
+        fields["Sent_At"] = now_iso
+    if set_notification_sent_at:
+        fields["Notification_Sent_At"] = now_iso
+    res = requests.patch(
+        conversations_url(record_id),
+        headers=airtable_headers(),
+        json={"fields": fields},
+        timeout=20,
+    )
+    if res.status_code != 200:
+        print(f"[conversations] update failed {res.status_code}: {res.text[:300]}")
+
+
+def create_edit_log(
+    conversation_id: str,
+    client_id: str | None,
+    draft: str,
+    final: str,
+) -> dict | None:
+    """Write a row to the Edit Log table. Returns None (and logs) on failure so
+    an edit-submit never fails because of logging issues."""
+    url = airtable_url(EDIT_LOG_TABLE)
+    edit_id = datetime.now(timezone.utc).strftime("%y%m%d%H%M%S") + "-" + conversation_id[-6:]
+    fields: dict = {
+        "Edit ID": edit_id,
+        "Conversation": [conversation_id] if conversation_id else None,
+        "Client": [client_id] if client_id else None,
+        "Draft": draft or None,
+        "Final": final or None,
+        "Created_At": datetime.now(timezone.utc).isoformat(),
+    }
+    fields = {k: v for k, v in fields.items() if v is not None and v != ""}
+    try:
+        res = requests.post(
+            url,
+            headers=airtable_headers(),
+            json={"records": [{"fields": fields}]},
+            timeout=20,
+        )
+    except Exception as e:
+        print(f"[edit_log] create exception: {e}")
+        return None
+    if res.status_code not in (200, 201):
+        print(f"[edit_log] create failed {res.status_code}: {res.text[:300]}")
+        return None
+    return res.json().get("records", [{}])[0]

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="LP Approve" />
+<title>LP — Approve Draft</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1a2332;
+    --muted: #6b7280;
+    --blue: #2563eb;
+    --green: #059669;
+    --red: #b91c1c;
+    --border: #e5e7eb;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    font-size: 16px; line-height: 1.5; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 16px; padding-bottom: 80px; }
+  .header { display: flex; align-items: center; gap: 10px; margin: 8px 0 4px; }
+  .logo { width: 36px; height: 36px; border-radius: 50%; flex: 0 0 auto; }
+  h1 { font-size: 22px; margin: 0; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+  .card { background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  textarea { width: 100%; padding: 12px; font-size: 16px; border: 1px solid var(--border);
+    border-radius: 8px; background: #fff; font-family: inherit; min-height: 180px; resize: vertical; }
+  button { display: inline-block; padding: 12px 18px; font-size: 16px; font-weight: 600;
+    border: none; border-radius: 8px; color: #fff; cursor: pointer;
+    width: 100%; margin-top: 8px; }
+  button.approve { background: var(--green); }
+  button.edit { background: var(--blue); }
+  button.reject { background: #fff; color: var(--red); border: 1px solid var(--red); }
+  button:disabled { background: #9ca3af; color: #fff; border: none; }
+  .meta-row { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .meta-label { font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted); }
+  .meta-val { font-size: 15px; font-weight: 600; }
+  .history {
+    background: #f8fafc; border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; color: #374151; font-family: ui-monospace, Menlo, monospace;
+    white-space: pre-wrap; max-height: 180px; overflow-y: auto;
+  }
+  .err { color: var(--red); background: #fef2f2; border-left: 3px solid var(--red);
+    padding: 10px; border-radius: 6px; font-size: 14px; margin-bottom: 12px; }
+  .ok { color: #065f46; background: #ecfdf5; border-left: 3px solid var(--green);
+    padding: 10px; border-radius: 6px; font-size: 14px; margin-bottom: 12px; }
+  .loading { color: var(--muted); text-align: center; padding: 40px 0; font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <img class="logo" src="/LP_logo.png" alt="LP" onerror="this.style.display='none'"/>
+    <h1>Approve Draft</h1>
+  </div>
+  <div class="sub">Review and send the reply below, or edit it first.</div>
+
+  <div id="status"></div>
+  <div id="app"></div>
+</div>
+
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id") || "";
+  const token = params.get("token") || "";
+
+  const statusEl = document.getElementById("status");
+  const appEl = document.getElementById("app");
+
+  function showError(msg) {
+    statusEl.innerHTML = '<div class="err">' + escapeHtml(msg) + '</div>';
+  }
+  function showOk(msg) {
+    statusEl.innerHTML = '<div class="ok">' + escapeHtml(msg) + '</div>';
+  }
+  function escapeHtml(s) {
+    return String(s || "").replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    })[c]);
+  }
+
+  if (!id || !token) {
+    appEl.innerHTML = "";
+    showError("Missing id or token in URL.");
+    return;
+  }
+
+  function render(data) {
+    const name = data.customer_name || "(unknown)";
+    const phone = data.customer_phone || "(no phone)";
+    const history = data.history_text || "(no prior messages)";
+    appEl.innerHTML = `
+      <div class="card">
+        <div class="meta-row">
+          <div>
+            <div class="meta-label">Customer</div>
+            <div class="meta-val">${escapeHtml(name)}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="meta-label">Phone</div>
+            <div class="meta-val">${escapeHtml(phone)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <label>Conversation history</label>
+        <div class="history">${escapeHtml(history)}</div>
+      </div>
+
+      <div class="card">
+        <label>Draft (edit if needed)</label>
+        <textarea id="draft">${escapeHtml(data.draft || "")}</textarea>
+        <button class="approve" id="btn-approve">Send as-is</button>
+        <button class="edit" id="btn-edit">Send edited version</button>
+        <button class="reject" id="btn-reject">Reject (don't send)</button>
+      </div>
+    `;
+    const original = data.draft || "";
+    document.getElementById("btn-approve").onclick = () => submit("approve");
+    document.getElementById("btn-edit").onclick = () => {
+      const text = document.getElementById("draft").value.trim();
+      if (!text) { showError("Edited message can't be empty."); return; }
+      if (text === original) { submit("approve"); return; }
+      submit("edit", text);
+    };
+    document.getElementById("btn-reject").onclick = () => {
+      if (!confirm("Reject this draft? No SMS will be sent.")) return;
+      submit("reject");
+    };
+  }
+
+  function disableButtons() {
+    ["btn-approve","btn-edit","btn-reject"].forEach(id => {
+      const b = document.getElementById(id);
+      if (b) b.disabled = true;
+    });
+  }
+
+  async function submit(action, text) {
+    disableButtons();
+    statusEl.innerHTML = '<div class="loading">Sending...</div>';
+    try {
+      const res = await fetch(`/api/approve?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, text: text || "" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        showError(data.error || `Error (HTTP ${res.status})`);
+        return;
+      }
+      if (action === "reject") {
+        showOk("Draft rejected. No SMS sent.");
+      } else {
+        showOk(`Sent! Customer received the ${action === "edit" ? "edited " : ""}message.`);
+      }
+      appEl.innerHTML = "";
+    } catch (e) {
+      showError("Network error: " + (e.message || e));
+    }
+  }
+
+  appEl.innerHTML = '<div class="loading">Loading draft...</div>';
+  fetch(`/api/approve?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`)
+    .then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        appEl.innerHTML = "";
+        showError(`This draft was already handled (status: ${data.status || "unknown"}).`);
+        return;
+      }
+      if (!res.ok || !data.ok) {
+        appEl.innerHTML = "";
+        showError(data.error || `Error (HTTP ${res.status})`);
+        return;
+      }
+      render(data);
+    })
+    .catch((e) => {
+      appEl.innerHTML = "";
+      showError("Network error: " + (e.message || e));
+    });
+})();
+</script>
+</body>
+</html>
